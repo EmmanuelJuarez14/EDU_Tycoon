@@ -3,6 +3,7 @@ package io.moviles.IPN_Tycoon
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.Texture.TextureFilter.Linear
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.kotcrab.vis.ui.VisUI
 import ktx.app.KtxGame
 import ktx.app.KtxScreen
 import ktx.app.clearScreen
@@ -10,13 +11,22 @@ import ktx.assets.disposeSafely
 import ktx.assets.toInternalFile
 import ktx.async.KtxAsync
 import ktx.graphics.use
+import ktx.scene2d.Scene2DSkin
 
 class Main : KtxGame<KtxScreen>() {
     override fun create() {
         KtxAsync.initiate()
+        VisUI.load()
+        Scene2DSkin.defaultSkin = VisUI.getSkin()
 
+        addScreen(Bienvenida(this))
         addScreen(FirstScreen())
-        setScreen<FirstScreen>()
+        setScreen<Bienvenida>()
+    }
+
+    override fun dispose() {
+        super.dispose()
+        VisUI.dispose()
     }
 }
 
