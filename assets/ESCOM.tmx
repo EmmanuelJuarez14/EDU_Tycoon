@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.0" orientation="isometric" renderorder="right-down" width="48" height="64" tilewidth="64" tileheight="32" infinite="0" nextlayerid="10" nextobjectid="1">
+ <tileset firstgid="1" source="edificios.tsx"/>
+ <tileset firstgid="130" source="Suelo.tsx"/>
+ <layer id="8" name="Capa0" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt1EEKwjAQQNHeXXfq6bxQKbVESohJHGvE9yB00Vn8hjLTBAAAAO+5B53L0eEPEe0L/X30r/T30b/6p/7Ib9Xf3qQ/0d/epD/R396kP9Hf3qQ/ie6/VZzrwP1He9VVM7sYpb/07hf6c/demt3mTx9sLNl31N73qP0187nnOTKqwXP/fs/t5Xbh5hv/f82urt3nkTsdAADoNwMKZKJx
+  </data>
+ </layer>
+ <layer id="9" name="Capa1" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt2UEKgzAQQNF4Jt30aF7F03YhBSMtNumoqb4HAxow/FUQkhIAwP0MAQO0Zzw7oNJYOa9vnUnAnU2LWa+/e27Np/69PIL3O7q/D95Pfxn9Of1l9Of0l9Gfu2r/1nut6P4IXZr/y76d1nRnB/zo3/uB47kbAgAAWvMENLIslA==
+  </data>
+ </layer>
+ <layer id="6" name="Capa2" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt2DEKhDAQQNHY7X1is0de2EOKaCXrIhgdR9+DwNj9wmKSUgAAAPLqG5y76KID4IE+K/N3Pss5i+z9R3lHB+xUowN20h9Lfyz9sfTHOqt/ufO02oFa92/ZP399r6nlf+MV/5/x7vsq025WN8xXk/3unr0fON8d32EBAACiDaL6Fhk=
+  </data>
+ </layer>
+ <layer id="7" name="Capa3" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt2LENgDAMAMGwAasgaLL/YogypYWFUXInubW/TVoDAABWdSXMLLaiu0fR3Sz6a+mvpT+mJ+/7uv9M3qc/Rv9If4z+kf4Y/SP9MX/sf96+PTCZsvqr6Ic17cX3Z/yHBQAA4L0b/VINnA==
+  </data>
+ </layer>
+ <layer id="1" name="Capa4" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt1jEKgDAQRUHtLL2IhSiC97+YpBMLYRXcRGbg949AQroOAADgnT47AAhr/d5ugdUo2r8nNN6J9i8JjXf059KfS38u/bn0t6W2/tJT/tB7YLWp7UyjxuwAoDnraU95e5gumx+sGD6tBgAA/u4A7uQnmQ==
+  </data>
+ </layer>
+ <layer id="2" name="Capa5" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt2DsOwjAQQMHQUXIRCgRN7n8xFDriZuO/pRlpW+cprrzbBgDAij6jA/jdQekcbl2r/70GfrsG/WPpH0t/3N7gzJ797wZn6o/Tn9Ifpz+lP05/Sn/cjP3H23e/MLWV9rf4p1eU9j+qVOSr0W9/kk//WKv2n3eYrGeGu3ueJneHfu9aDQAAML8vjuUSag==
+  </data>
+ </layer>
+ <layer id="3" name="Capa6" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt2DEKgDAQRNGU2nkMGwshd8mdPZUIsTB2m5Bhk/9g2vAVETEEAAAAeBTzXinPi1S599rXrtVfZ4Mz6Lejn/4a9GuN1H/JKuxGuv8e0a9Fvxb9WvRr0a81Uv+s359bgzOsRnp+PPLeb7WrAyYRw/8/e0n5/jmKRcMeS9dqAAAAAEAPN5OTEf0=
+  </data>
+ </layer>
+ <layer id="4" name="Capa7" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt2DEKgDAMRuG4OXqMLg5iF+9/MSkqqJNtgiH6PvjBqT46iSIAAAD/lL0DFLLBiu7V6qvJ8d0W6PdFvy+L/t7gjFbcv8hcOUv0069BP/0a9NOvQX/8/mVf9P6ns8T3sy+r/sHonFr0b+ivlyR2v1Y6PUfsL45/z179421Tw4qo9w8AAAAA+LYVutEu3A==
+  </data>
+ </layer>
+ <layer id="5" name="Techo" width="48" height="64">
+  <data encoding="base64" compression="zlib">
+   eJzt0LsNgDAQREHIKMUJGf3XBqTO/BELYkba9PR0ywIA0K5cOwaWNtL+hv6SDhikP0t/lv4s/Vn6s/Rn6c/Sn6U/S3+W/qxZ/eukO638P0t/1tf792qlY0l1f89u26PVAAAA8B8nIMEQvw==
+  </data>
+ </layer>
+</map>

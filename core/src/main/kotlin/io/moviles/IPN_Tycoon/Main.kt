@@ -19,8 +19,12 @@ class Main : KtxGame<KtxScreen>() {
         VisUI.load()
         Scene2DSkin.defaultSkin = VisUI.getSkin()
 
+        // --- SCREEN REGISTRATION ---
         addScreen(Bienvenida(this))
+        addScreen(SeleccionPartida(this))
+        addScreen(GameScreen(this))
         addScreen(FirstScreen())
+
         setScreen<Bienvenida>()
     }
 

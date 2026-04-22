@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.0" orientation="isometric" renderorder="right-down" width="500" height="500" tilewidth="64" tileheight="32" infinite="0" nextlayerid="10" nextobjectid="40">
+ <tileset firstgid="1" source="calles/calles.tsx"/>
+ <tileset firstgid="101" source="Edificio1Mini.tsx"/>
+ <layer id="1" name="Capa 0" width="500" height="500" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJztwwENAAAMw6DOv+kLOSSsmqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq+vIBLwDQvg==
+  </data>
+ </layer>
+ <layer id="2" name="Capa 1" width="500" height="500">
+  <data encoding="base64" compression="zlib">
+   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
+  </data>
+ </layer>
+ <objectgroup id="7" name="Logica_Clics">
+  <object id="18" name="escom_hitbox" type="edificio_clickable" x="52" y="1452" width="2200" height="1672"/>
+  <object id="19" x="36" y="42" width="884" height="1244"/>
+  <object id="20" x="1340" y="50" width="1072" height="752"/>
+  <object id="22" name="Direccion" x="3456" y="6848" width="3448" height="2792"/>
+  <object id="24" name="Mac_and_cheese" x="3584" y="9952" width="1728" height="2080"/>
+  <object id="25" x="6648" y="10472"/>
+  <object id="26" name="auditorio" x="5488" y="10000" width="1448" height="2104"/>
+  <object id="27" name="Arquitectura" x="6136" y="968" width="2280" height="2296"/>
+  <object id="28" x="6088" y="-1320"/>
+  <object id="29" name="Biologicas" x="72" y="3800" width="2936" height="1704"/>
+  <object id="30" x="-872" y="6504"/>
+  <object id="31" name="Bioquimica" x="88" y="7080" width="2960" height="1904"/>
+  <object id="32" name="Matematicas" x="7488" y="6432" width="3800" height="2216"/>
+  <object id="33" x="6312" y="4600"/>
+  <object id="34" name="Edificio1" x="3928" y="3848" width="1032" height="2456"/>
+  <object id="35" x="5944" y="3784"/>
+  <object id="36" name="Edificio2" x="5424" y="3984" width="1080" height="2408"/>
+  <object id="37" x="7552" y="3872"/>
+  <object id="38" name="Museo" x="7456" y="3776" width="3736" height="2184"/>
+  <object id="39" name="Turismo" x="8416" y="11136" width="1192" height="984"/>
+ </objectgroup>
+ <objectgroup id="6" name="Edificios" visible="0">
+  <object id="7" x="236" y="-1516"/>
+  <object id="9" x="3408" y="-656"/>
+  <object id="11" x="4744" y="-1224"/>
+  <object id="12" x="-648" y="-2936"/>
+  <object id="15" name="Escom1" gid="101" x="2246" y="3098" width="3728" height="1968"/>
+ </objectgroup>
+ <objectgroup id="9" name="Puntos_origen" visible="0">
+  <object id="21" name="EdificioEscom" x="2222" y="3090">
+   <point/>
+  </object>
+ </objectgroup>
+</map>
