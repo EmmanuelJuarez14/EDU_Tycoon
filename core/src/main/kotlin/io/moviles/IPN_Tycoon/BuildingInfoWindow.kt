@@ -1,13 +1,12 @@
 package io.moviles.IPN_Tycoon
 
-import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.kotcrab.vis.ui.widget.VisWindow
 import ktx.actors.onChange
 import ktx.scene2d.*
 
 class BuildingInfoWindow(
-    val data: BuildingInfo,
+    val data: Propiedad,
     val onUpgrade: () -> Unit
 ) : VisWindow("Gestión del Plantel") {
 
@@ -17,13 +16,13 @@ class BuildingInfoWindow(
         isModal = false
 
         add(scene2d.table {
-            label("[GOLD]${data.name}[]").cell(padBottom = 10f)
+            label("[GOLD]${data.nombre}[]").cell(padBottom = 10f)
             row()
-            label(data.description).apply { setWrap(true) }.cell(width = 280f, padBottom = 10f)
+            label(data.descripcion).apply { setWrap(true) }.cell(width = 280f, padBottom = 10f)
             row()
-            label("Capacidad: ${data.capacity} alumnos")
+            label("Capacidad: ${data.capacidad} alumnos")
             row()
-            label("Costo Mejora: $${data.upgradePrice}")
+            label("Costo Mejora: $${data.precio}")
             row()
             textButton("MEJORAR") {
                 onChange {
