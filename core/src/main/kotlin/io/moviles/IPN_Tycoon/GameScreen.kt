@@ -8,7 +8,9 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.input.GestureDetector
 import com.badlogic.gdx.input.GestureDetector.GestureAdapter
+import com.badlogic.gdx.maps.objects.PointMapObject
 import com.badlogic.gdx.maps.objects.RectangleMapObject
+import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.maps.tiled.renderers.IsometricTiledMapRenderer
 import com.badlogic.gdx.math.Vector3
@@ -21,17 +23,25 @@ import com.badlogic.gdx.utils.Scaling
 import ktx.app.clearScreen
 import ktx.assets.toInternalFile
 import ktx.scene2d.Scene2DSkin
-import ktx.tiled.layer
 
 class GameScreen(game: Main) : BaseScreen(game) {
-    private val map by lazy { TmxMapLoader().load("Mapa/Mapa_General.tmx") }
-    private val renderer by lazy { IsometricTiledMapRenderer(map) }
+    private val map: TiledMap? by lazy {
+        try { TmxMapLoader().load("Mapa/Mapa_General.tmx") } catch (e: Exception) { null }
+    }
+    private val renderer by lazy { map?.let { IsometricTiledMapRenderer(it) } }
+
     private val camera = OrthographicCamera().apply {
         setToOrtho(false, 800f, 480f)
-        zoom = 4f
-        position.set(2200f, 3000f, 0f)
+        zoom = 8f
+        // Posición de cámara inicial
+        position.set(-436f, 1360f, 0f)
     }
-    private var initialZoom = 4f
+    private var initialZoom = 8f
+
+    private val escomTexture by lazy {
+        val file = "Mapa/Edificios/ESCOMmini.png".toInternalFile()
+        if (file.exists()) Texture(file) else null
+    }
 
     private var dialogoActor: DialogoActor? = null
     private val backgroundTexture: Texture by lazy {
@@ -40,12 +50,13 @@ class GameScreen(game: Main) : BaseScreen(game) {
         }
     }
     private var backgroundImage: Image? = null
+    private var nombreJugador: String = ""
+    private var nombreEscuela: String = ""
 
     var modoCarga: Boolean = false
 
     override fun show() {
         super.show()
-
         val skin = Scene2DSkin.defaultSkin
         val fuente = skin.getFont("default-font")
 
@@ -69,10 +80,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
             override fun keyDown(event: InputEvent?, keycode: Int): Boolean {
                 if (keycode == Input.Keys.BACK || keycode == Input.Keys.ESCAPE) {
                     if (!modoCarga && dialogoActor?.isVisible == true) {
-                        val pudoRetroceder = dialogoActor?.retroceder() ?: false
-                        if (!pudoRetroceder) {
-                            game.setScreen<SeleccionPartida>()
-                        }
+                        if (!(dialogoActor?.retroceder() ?: false)) game.setScreen<SeleccionPartida>()
                         return true
                     } else if (modoCarga) {
                         game.setScreen<SeleccionPartida>()
@@ -90,33 +98,44 @@ class GameScreen(game: Main) : BaseScreen(game) {
                 it.width = stage.width
                 it.height = stage.height
 
-                val charla = listOf(
-                    Dialogo("?????", "¡Hola, qué tal! Soy el Ing. Lázaro Cárdenas, gracias por jugar Edu-Tycoon.", "sprite_saludando.png"),
-                    Dialogo("Ing. Lázaro", "Aquí podrás construir tu propio instituto educativo, tal como yo lo hice.", "sprite_apenado.png"),
-                    Dialogo("Ing. Lázaro", "Y por qué no, convertirlo en un ¡ IMPERIO EDUCATIVO !", "sprite_explicando.png"),
-                    Dialogo("Ing. Lázaro", "Pero no nos adelantemos. Para comenzar ¿cuál es tu nombre?", "sprite_hablando.png")
-                )
-                it.mostrarConversacion(charla)
+                it.alTerminarNombre = { nombre ->
+                    nombreJugador = nombre
+                    it.variables["nombre"] = nombre
+                    Gdx.app.log("GAME", "Nombre guardado: $nombreJugador")
+                }
+
+                it.alTerminarEscuela = { escuela ->
+                    nombreEscuela = escuela
+                    it.variables["escuela"] = escuela
+                    Gdx.app.log("GAME", "Escuela guardada: $nombreEscuela")
+                }
+
+                it.mostrarConversacion(listOf(
+                    Dialogo("?????", "¡Hola! Soy el Ing. Lázaro Cárdenas.", "sprite_saludando.png"),
+                    Dialogo("Ing. Cárdenas", "Bienvenido a EDU-TYCOON. Aquí podrás crear tu propia institución educativa, tal como lo hice yo.", "sprite_apenado.png"),
+                    Dialogo("Ing. Cárdenas", "¿Y por qué no? Llegar a construir un ¡¡IMPERIO EDUCATIVO!!", "sprite_explicando.png"),
+                    Dialogo("Ing. Cárdenas", "Pero antes que nada, empecemos por lo básico....", "sprite_serio.png"),
+                    Dialogo("Ing. Cárdenas", "¿Cuál es tu nombre?", "sprite_hablando.png", TipoDialogo.INPUT),
+                    Dialogo("Ing. Cárdenas", "¡Un gusto conocerte {nombre}! Prepárate para el resto.", "sprite_saludando.png"),
+                    Dialogo("Ing. Cárdenas", "Tener un buen nombre para tu institución lo es todo.", "sprite_serio.png"),
+                    Dialogo("Ing. Cárdenas", "Así que dime, ¿qué nombre llevará?", "sprite_hablando.png", TipoDialogo.INPUT),
+                    Dialogo("Ing. Cárdenas", "¿{escuela}? Suena genial", "sprite_explicando.png")
+                ))
             }
 
             stage.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
-                    dialogoActor?.let { actor ->
-                        if (actor.isVisible) {
-                            actor.avanzar()
-                        } else {
-                            modoCarga = true
-                            configurarControlesMapa()
-                        }
+                    dialogoActor?.let {
+                        if (it.isVisible) it.avanzar()
+                        else { modoCarga = true; configurarControlesMapa() }
                     }
                 }
             })
             Gdx.input.inputProcessor = stage
-            Gdx.input.setCatchKey(Input.Keys.BACK, true)
         } else {
             configurarControlesMapa()
-            Gdx.input.setCatchKey(Input.Keys.BACK, true)
         }
+        Gdx.input.setCatchKey(Input.Keys.BACK, true)
     }
 
     private fun configurarControlesMapa() {
@@ -126,62 +145,47 @@ class GameScreen(game: Main) : BaseScreen(game) {
         val gestureDetector = GestureDetector(object : GestureAdapter() {
             override fun tap(x: Float, y: Float, count: Int, button: Int): Boolean {
                 if (dialogoActor?.isVisible == true) return false
+                val m = map ?: return false
 
-                val worldCoords = camera.unproject(Vector3(x, y, 0f))
+                val worldTouch = Vector3(x, y, 0f)
+                camera.unproject(worldTouch)
 
-                // --- FÓRMULA DE CONVERSIÓN ISOMÉTRICA EXACTA PARA TILED (64x32) ---
-                // mapX = (worldX / 32 + worldY / 16) / 2
-                // mapY = (worldY / 16 - worldX / 32) / 2
-                // Multiplicado por 64/32 para obtener píxeles de mapa Tiled
-                val mapPixelX = (worldCoords.x / 32f + worldCoords.y / 16f) * 32f
-                val mapPixelY = (worldCoords.y / 16f - worldCoords.x / 32f) * 16f
+                // Lógica de coordenadas: Mundo -> Tiled
+                val tileWidth = 64f
+                val tileHeight = 32f
 
-                val logicaLayer = map.layer("Logica_Clics")
-                logicaLayer.objects.filterIsInstance<RectangleMapObject>().forEach { obj ->
-                    // Verificamos si las coordenadas transformadas caen dentro del rectángulo
-                    if (obj.rectangle.contains(mapPixelX, mapPixelY)) {
-                        val propiedad = PropiedadRepository.getPropiedad(obj.name ?: "")
-                        if (propiedad != null) {
-                            PropertyWindow(propiedad, Scene2DSkin.defaultSkin) { p ->
-                                if (!p.comprada) {
-                                    p.comprada = true
-                                    println("Compraste ${p.nombre}")
-                                } else {
-                                    if (p.nivel < p.mejoraMax) {
-                                        p.nivel++
-                                        println("Mejoraste ${p.nombre} al nivel ${p.nivel}")
-                                    }
-                                }
-                            }.show(stage)
-                            return true
+                val tiledX = (worldTouch.x / (tileWidth / 2f) - worldTouch.y / (tileHeight / 2f)) / 2f * tileHeight
+                val tiledY = (worldTouch.y / (tileHeight / 2f) + worldTouch.x / (tileWidth / 2f)) / 2f * tileHeight
+
+                try {
+                    val logicaLayer = m.layers["Logica_Clics"] ?: return false
+                    logicaLayer.objects.filterIsInstance<RectangleMapObject>().forEach { obj ->
+                        if (obj.rectangle.contains(tiledX, tiledY)) {
+                            val propiedad = PropiedadRepository.getPropiedad(obj.name ?: "")
+                            if (propiedad != null) {
+                                BuildingInfoWindow(propiedad) {
+                                    Gdx.app.log("GAME", "Mejorando...")
+                                }.show(stage)
+                                return true
+                            }
                         }
                     }
-                }
+                } catch (e: Exception) {}
                 return false
             }
 
             override fun pan(x: Float, y: Float, deltaX: Float, deltaY: Float): Boolean {
-                if (modoCarga) {
-                    camera.translate(-deltaX * camera.zoom, deltaY * camera.zoom)
-                    return true
-                }
-                return false
+                camera.translate(-deltaX * camera.zoom, deltaY * camera.zoom)
+                return true
             }
 
             override fun zoom(initialDistance: Float, distance: Float): Boolean {
-                if (modoCarga) {
-                    val ratio = if (distance > 0) initialDistance / distance else 1f
-                    camera.zoom = initialZoom * ratio
-                    if (camera.zoom < 1f) camera.zoom = 1f
-                    if (camera.zoom > 10f) camera.zoom = 10f
-                    return true
-                }
-                return false
+                val ratio = if (distance > 0) initialDistance / distance else 1f
+                camera.zoom = (initialZoom * ratio).coerceIn(1f, 15f)
+                return true
             }
 
-            override fun pinchStop() {
-                initialZoom = camera.zoom
-            }
+            override fun pinchStop() { initialZoom = camera.zoom }
         })
 
         multiplexer.addProcessor(gestureDetector)
@@ -191,9 +195,31 @@ class GameScreen(game: Main) : BaseScreen(game) {
     override fun render(delta: Float) {
         clearScreen(0f, 0f, 0f, 1f)
         if (modoCarga) {
+            val r = renderer ?: return
             camera.update()
-            renderer.setView(camera)
-            renderer.render()
+            r.setView(camera)
+            r.render()
+
+            r.batch.begin()
+            try {
+                val m = map ?: return
+                // Aplicamos la inversa de la lógica de clics para posicionar los edificios
+                m.layers["Puntos_origen"]?.objects?.filterIsInstance<PointMapObject>()?.forEach { obj ->
+                    // Transformación inversa exacta: Tiled -> Mundo
+                    // worldX = tiledX + tiledY
+                    // worldY = (tiledY - tiledX) / 2
+                    val worldX = obj.point.x + obj.point.y
+                    val worldY = (obj.point.y - obj.point.x) * 0.5f
+
+                    // Dimensiones visuales del edificio
+                    val w = 3728f
+                    val h = 1968f
+
+                    // Dibujamos centrando horizontalmente y usando el punto como base inferior (suelo)
+                    escomTexture?.let { r.batch.draw(it, worldX - (w / 2f), worldY, w, h) }
+                }
+            } catch (ignore: Exception) {}
+            r.batch.end()
         }
         stage.act(delta)
         stage.draw()
@@ -201,13 +227,15 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
     override fun resize(width: Int, height: Int) {
         super.resize(width, height)
-        camera.viewportWidth = viewport.worldWidth
-        camera.viewportHeight = viewport.worldHeight
+        camera.viewportWidth = width.toFloat()
+        camera.viewportHeight = height.toFloat()
         camera.update()
     }
 
     override fun dispose() {
         super.dispose()
         backgroundTexture.dispose()
+        escomTexture?.dispose()
+        map?.dispose()
     }
 }

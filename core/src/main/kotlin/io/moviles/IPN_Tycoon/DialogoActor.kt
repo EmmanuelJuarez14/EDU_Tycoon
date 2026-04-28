@@ -8,8 +8,10 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.scenes.scene2d.Group
 import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.badlogic.gdx.scenes.scene2d.ui.Label
+import com.badlogic.gdx.scenes.scene2d.ui.TextField
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
+import ktx.scene2d.Scene2DSkin
 
 class DialogoActor(
     private val font: BitmapFont,
@@ -21,9 +23,15 @@ class DialogoActor(
     private val imagenPersonaje = Image()
     private val fondoBordeGuinda: Image
     private val fondoBlancoInterno: Image
+    private val inputNombre: TextField
+
+    var alTerminarNombre: ((String) -> Unit)? = null
+    var alTerminarEscuela: ((String) -> Unit)? = null
+    val variables = mutableMapOf<String, String>()
 
     private var listaDialogos = listOf<Dialogo>()
     private var indiceActual = 0
+    private var contadorInputs = 0
     private var textoCompleto = ""
     private var caracteresVisibles = 0
     private var tiempoAcumulado = 0f
@@ -78,6 +86,24 @@ class DialogoActor(
         labelTexto.setSize(700f, 90f)
         labelTexto.setPosition(50f, 40f)
 
+        inputNombre = TextField("", Scene2DSkin.defaultSkin).apply {
+            isVisible = false
+            setSize(300f, 50f)
+            setPosition(50f, 50f)
+            messageText = "Escribe aquí..."
+
+            // Listener para la tecla ENTER
+            addListener(object : com.badlogic.gdx.scenes.scene2d.InputListener() {
+                override fun keyDown(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, keycode: Int): Boolean {
+                    if (keycode == com.badlogic.gdx.Input.Keys.ENTER) {
+                        avanzar()
+                        return true
+                    }
+                    return false
+                }
+            })
+        }
+
         imagenPersonaje.setSize(280f, 280f)
         imagenPersonaje.setPosition(500f, 170f)
 
@@ -87,6 +113,7 @@ class DialogoActor(
         addActor(fondoBlancoInterno)
         addActor(labelNombre)
         addActor(labelTexto)
+        addActor(inputNombre)
 
         this.isVisible = false
     }
@@ -95,6 +122,7 @@ class DialogoActor(
     fun mostrarConversacion(dialogos: List<Dialogo>) {
         this.listaDialogos = dialogos
         this.indiceActual = 0
+        this.contadorInputs = 0
         this.isVisible = true
         actualizarContenido()
     }
@@ -109,10 +137,26 @@ class DialogoActor(
         } catch (e: Exception) {}
 
         labelNombre.setText(actual.nombre)
-        textoCompleto = actual.texto
+
+        // Reemplazo de variables en el texto
+        var textoFinal = actual.texto
+        variables.forEach { (clave, valor) ->
+            textoFinal = textoFinal.replace("{$clave}", valor)
+        }
+
+        textoCompleto = textoFinal
         caracteresVisibles = 0
         tiempoAcumulado = 0f
         labelTexto.setText("")
+
+        // Lógica para mostrar input si es tipo INPUT
+        if (actual.tipo == TipoDialogo.INPUT) {
+            inputNombre.isVisible = true
+            inputNombre.text = ""
+            stage?.keyboardFocus = inputNombre
+        } else {
+            inputNombre.isVisible = false
+        }
     }
 
     override fun act(delta: Float) {
@@ -134,6 +178,23 @@ class DialogoActor(
             caracteresVisibles = textoCompleto.length
             labelTexto.setText(textoCompleto)
         } else {
+            val actual = listaDialogos.getOrNull(indiceActual)
+            if (actual?.tipo == TipoDialogo.INPUT) {
+                if (inputNombre.text.isNotBlank()) {
+                    if (contadorInputs == 0) {
+                        alTerminarNombre?.invoke(inputNombre.text)
+                    } else {
+                        alTerminarEscuela?.invoke(inputNombre.text)
+                    }
+                    contadorInputs++
+
+                    inputNombre.isVisible = false
+                    stage?.keyboardFocus = null
+                } else {
+                    return // No avanzar si no hay texto
+                }
+            }
+
             indiceActual++
             if (indiceActual < listaDialogos.size) {
                 actualizarContenido()
