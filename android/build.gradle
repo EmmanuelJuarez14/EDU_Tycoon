@@ -7,6 +7,7 @@ buildscript {
 }
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
 
 android {
   namespace = "io.moviles.IPN_Tycoon"
@@ -36,6 +37,10 @@ android {
     targetSdkVersion 35
     versionCode 1
     versionName "1.0"
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+  }
+  buildFeatures {
+    buildConfig = true
   }
   compileOptions {
     sourceCompatibility "17"
@@ -50,7 +55,7 @@ android {
   }
 
   kotlin.compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-  
+
 }
 
 repositories {
@@ -64,6 +69,20 @@ dependencies {
   coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
   implementation "com.badlogicgames.gdx:gdx-backend-android:$gdxVersion"
   implementation project(':core')
+
+  // Room
+  implementation "androidx.room:room-runtime:$roomVersion"
+  implementation "androidx.room:room-ktx:$roomVersion"
+  kapt "androidx.room:room-compiler:$roomVersion"
+  implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycleVersion"
+  implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycleVersion"
+
+  // Testing
+  testImplementation "junit:junit:4.13.2"
+  androidTestImplementation "androidx.test.ext:junit:1.2.1"
+  androidTestImplementation "androidx.test:runner:1.6.2"
+  androidTestImplementation "androidx.test:rules:1.6.1"
+  androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion"
 
   natives "com.badlogicgames.gdx:gdx-box2d-platform:$gdxVersion:natives-arm64-v8a"
   natives "com.badlogicgames.gdx:gdx-box2d-platform:$gdxVersion:natives-armeabi-v7a"

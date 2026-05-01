@@ -56,13 +56,14 @@ configure(subprojects - project(':android')) {
   }
   compileKotlin.compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
   compileTestKotlin.compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-  
+
 }
 
 subprojects {
   version = "$projectVersion"
   ext.appName = 'IPN_Tycoon'
   repositories {
+    google()
     mavenCentral()
     // You may want to remove the following line if you have errors downloading dependencies.
     mavenLocal()
