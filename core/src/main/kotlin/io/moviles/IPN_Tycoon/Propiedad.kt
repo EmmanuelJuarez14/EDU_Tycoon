@@ -140,4 +140,11 @@ object PropiedadRepository {
     )
 
     fun getPropiedad(id: String): Propiedad? = propiedades[id]
+
+    fun resetProgress() {
+        propiedades.values.forEach { propiedad ->
+            propiedad.nivel = 0
+            propiedad.comprada = false
+        }
+    }
 }

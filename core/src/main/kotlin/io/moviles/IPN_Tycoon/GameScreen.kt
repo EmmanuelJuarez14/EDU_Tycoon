@@ -56,19 +56,27 @@ class GameScreen(game: Main) : BaseScreen(game) {
      */
     private val buildingTextureCache = mutableMapOf<String, Texture?>()
 
-    private fun getBuildingTexture(propiedad: Propiedad): Texture? {
-        val prefix = propiedad.texturePrefix ?: return null
-        val key    = "${prefix}lvl${propiedad.nivel}"
+    private fun loadBuildingTexture(key: String): Texture? {
         return buildingTextureCache.getOrPut(key) {
             val path = "Mapa/Edificios/$key.png"
             val file = path.toInternalFile()
             if (file.exists()) {
                 Texture(file)
             } else {
-                Gdx.app.error("TEXTURE", "No encontrado: $path")
                 null
             }
         }
+    }
+
+    private fun getBuildingTexture(propiedad: Propiedad): Texture? {
+        val level = propiedad.nivel.coerceAtLeast(1)
+        propiedad.texturePrefix?.let { prefix ->
+            for (candidateLevel in level downTo 1) {
+                loadBuildingTexture("${prefix}lvl$candidateLevel")?.let { return it }
+            }
+        }
+        val fallbackLevel = level.coerceIn(1, 2)
+        return loadBuildingTexture("escomlvl$fallbackLevel")
     }
 
     // ── Diálogo de intro ──────────────────────────────────────────────
@@ -161,6 +169,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
                     dialogoActor?.let {
                         if (it.isVisible) it.avanzar()
                         else {
+                            stage.removeListener(this)
                             modoCarga = true
                             backgroundImage?.remove()
                             configurarControlesMapa()

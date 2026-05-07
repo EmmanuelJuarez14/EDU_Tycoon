@@ -7,15 +7,13 @@ package io.moviles.IPN_Tycoon
  */
 object GameState {
     private const val DINERO_INICIAL: Long = 500_000L
-
     var dinero: Long = DINERO_INICIAL   // Saldo inicial
 
-    /**
-     * Restaura el estado monetario inicial para una nueva partida.
-     */
-    fun reiniciar() {
+    fun reset() {
         dinero = DINERO_INICIAL
     }
+
+    fun reiniciar() = reset()
 
     /** Retorna true si el jugador tiene fondos suficientes. */
     fun puedeComprar(costo: Long): Boolean = dinero >= costo

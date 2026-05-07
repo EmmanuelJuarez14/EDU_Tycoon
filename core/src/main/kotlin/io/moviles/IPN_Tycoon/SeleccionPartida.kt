@@ -92,6 +92,8 @@ class SeleccionPartida(game: Main) : BaseScreen(game) {
                             style = customButtonStyle
                             onChange {
                                 val screen = game.getScreen<GameScreen>()
+                                GameState.reset()
+                                PropiedadRepository.resetProgress()
                                 screen.modoCarga = false
                                 game.setScreen<GameScreen>()
                             }
