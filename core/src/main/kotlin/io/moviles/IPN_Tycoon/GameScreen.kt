@@ -179,7 +179,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
                     dialogoActor?.let {
                         if (it.isVisible) it.avanzar()
                         else {
-                            stage.removeListener(this)
+                            Gdx.app.postRunnable { stage.removeListener(this) }
                             modoCarga = true
                             backgroundImage?.remove()
                             configurarControlesMapa()
