@@ -125,6 +125,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
         }
 
         stage.clear()
+        stage.clearListeners()
 
         stage.addListener(object : InputListener() {
             override fun keyDown(event: InputEvent?, keycode: Int): Boolean {
