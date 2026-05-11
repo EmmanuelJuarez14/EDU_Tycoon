@@ -1,30 +1,42 @@
 package io.moviles.IPN_Tycoon.viewmodels
 
-import io.moviles.IPN_Tycoon.data.local.entities.EscuelaEntity
-import io.moviles.IPN_Tycoon.data.local.entities.RecursoEntity
-import io.moviles.IPN_Tycoon.data.repositories.EscuelaRepository
-import io.moviles.IPN_Tycoon.data.repositories.RecursoRepository
+import io.moviles.IPN_Tycoon.GameState
+import io.moviles.IPN_Tycoon.PropiedadRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * ViewModel central que gestiona el estado global del juego.
- * Refactorizado para usar StateFlow (compatible con módulos no-Android).
+ * ViewModel de estado del juego.
+ * Expone flows observables calculados desde GameState y PropiedadRepository.
+ * Se actualiza manualmente llamando a [refresh] después de cada ciclo o acción.
  */
-class GameStateViewModel(
-    private val escuelaRepository: EscuelaRepository,
-    private val recursoRepository: RecursoRepository
-) {
-    // Exponemos los flujos de datos directamente (son compatibles con libGDX)
-    val escuelas = escuelaRepository.allEscuelas
-    val recursos = recursoRepository.allRecursos
+class GameStateViewModel {
 
-    // Estado para notificaciones (equivalente a LiveData)
-    private val _notificacion = MutableStateFlow<String>("")
-    val notificacion: StateFlow<String> = _notificacion.asStateFlow()
+    private val _dinero = MutableStateFlow(GameState.dinero)
+    val dinero = _dinero.asStateFlow()
 
-    fun triggerPrueba() {
-        _notificacion.value = "¡Arquitectura StateFlow conectada!"
+    private val _ciclos = MutableStateFlow(GameState.ciclosJugados)
+    val ciclos = _ciclos.asStateFlow()
+
+    private val _alumnosTotales = MutableStateFlow(calcularAlumnos())
+    val alumnosTotales = _alumnosTotales.asStateFlow()
+
+    private val _edificiosComprados = MutableStateFlow(contarEdificios())
+    val edificiosComprados = _edificiosComprados.asStateFlow()
+
+    /** Sincroniza todos los flows con el estado actual. */
+    fun refresh() {
+        _dinero.value           = GameState.dinero
+        _ciclos.value           = GameState.ciclosJugados
+        _alumnosTotales.value   = calcularAlumnos()
+        _edificiosComprados.value = contarEdificios()
     }
+
+    private fun calcularAlumnos(): Int =
+        PropiedadRepository.propiedades.values
+            .filter { it.comprada }
+            .sumOf { it.baseAlumnos * it.nivel }
+
+    private fun contarEdificios(): Int =
+        PropiedadRepository.propiedades.values.count { it.comprada }
 }

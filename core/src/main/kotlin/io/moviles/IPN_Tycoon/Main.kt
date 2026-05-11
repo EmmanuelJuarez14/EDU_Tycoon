@@ -6,15 +6,15 @@ import ktx.app.KtxScreen
 import ktx.async.KtxAsync
 import ktx.scene2d.Scene2DSkin
 
-class Main : KtxGame<KtxScreen>() {
+class Main(val saveManager: GameSaveManager) : KtxGame<KtxScreen>() {
     override fun create() {
         KtxAsync.initiate()
         VisUI.load()
         Scene2DSkin.defaultSkin = VisUI.getSkin()
 
-        // --- REGISTRO DE PANTALLAS ---
         addScreen(Bienvenida(this))
         addScreen(SeleccionPartida(this))
+        addScreen(PartidasGuardadas(this))
         addScreen(GameScreen(this))
 
         setScreen<Bienvenida>()

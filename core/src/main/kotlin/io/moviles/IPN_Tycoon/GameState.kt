@@ -1,37 +1,40 @@
 package io.moviles.IPN_Tycoon
 
-/**
- * Estado global del juego. Aquí vive el dinero del jugador.
- * Cuando integres Room, este objeto se sincronizará con la BD
- * a través de EconomyEngine / GameCycleEngine.
- */
 object GameState {
+
+    // ── Identidad de sesión ───────────────────────────────────────────
+    var saveId: Int       = 0   // 0 = sin guardar aún
+    var slotActual: Int   = 0   // 1, 2 = slots reales  |  3 = testing
+    var nombreJugador: String = ""
+    var nombreEscuela: String = ""
+    var ciclosJugados: Int    = 0
+    var musicaActiva: Boolean = true
+
+    // ── Economía ──────────────────────────────────────────────────────
     private const val DINERO_INICIAL: Long = 1_500_000L
-    var dinero: Long = DINERO_INICIAL   // Saldo inicial
+    var dinero: Long = DINERO_INICIAL
 
-    fun reset() {
-        dinero = DINERO_INICIAL
-    }
+    // ── API de dinero ─────────────────────────────────────────────────
+    fun puedeComprar(costo: Long) = dinero >= costo
 
-    /** Retorna true si el jugador tiene fondos suficientes. */
-    fun puedeComprar(costo: Long): Boolean = dinero >= costo
-
-    /**
-     * Descuenta [cantidad] del saldo.
-     * @return true si la transacción fue exitosa.
-     */
     fun gastar(cantidad: Long): Boolean {
         if (dinero < cantidad) return false
         dinero -= cantidad
         return true
     }
 
-    /** Usado por EconomyEngine para acreditar ingresos por ciclo. */
-    fun acreditar(cantidad: Long) {
-        dinero += cantidad
-    }
+    fun acreditar(cantidad: Long) { dinero += cantidad }
 
-    /** Costo de mejora escalado: precio_base × nivel_actual. */
     fun costoMejora(propiedad: Propiedad): Long =
         propiedad.precio * propiedad.nivel
+
+    // ── Reset completo para nueva partida ─────────────────────────────
+    fun reset() {
+        saveId        = 0
+        slotActual    = 0
+        nombreJugador = ""
+        nombreEscuela = ""
+        ciclosJugados = 0
+        dinero        = DINERO_INICIAL
+    }
 }

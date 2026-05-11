@@ -20,22 +20,24 @@ object RoomTester {
             try {
                 Log.d("RoomTest", "--- Iniciando prueba de Repository ---")
 
+                // Se actualiza para coincidir con los campos reales de EscuelaEntity
                 val testEscuela = EscuelaEntity(
-                    id = 101,
-                    nombre = "ESCOM vía Repository",
-                    nivel = 1,
-                    cant_alumnos = 3500,
-                    reputacion = 85.0f,
-                    comprada = true
+                    slot = 1,
+                    nombreJugador = "Jugador de Prueba",
+                    nombreEscuela = "ESCOM vía Repository",
+                    dinero = 2000000L,
+                    edificiosJson = "escom:1",
+                    ciclosJugados = 5,
+                    alumnosTotales = 1000
                 )
 
-                // Operación a través del repositorio
-                repository.insertEscuela(testEscuela)
-                Log.d("RoomTest", "Escuela insertada correctamente vía Repositorio.")
+                // Se usan los métodos reales: guardar() y getBySlot()
+                repository.guardar(testEscuela)
+                Log.d("RoomTest", "Escuela guardada correctamente vía Repositorio.")
 
-                val recuperada = repository.getEscuelaById(101)
-                if (recuperada != null && recuperada.nombre == "ESCOM vía Repository") {
-                    Log.d("RoomTest", "¡PRUEBA EXITOSA! Datos recuperados: ${recuperada.nombre}")
+                val recuperada = repository.getBySlot(1)
+                if (recuperada != null && recuperada.nombreEscuela == "ESCOM vía Repository") {
+                    Log.d("RoomTest", "¡PRUEBA EXITOSA! Datos recuperados: ${recuperada.nombreEscuela}")
                 } else {
                     Log.e("RoomTest", "¡PRUEBA FALLIDA! No se pudieron recuperar los datos.")
                 }

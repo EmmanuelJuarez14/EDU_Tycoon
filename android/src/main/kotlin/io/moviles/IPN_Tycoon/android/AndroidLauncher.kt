@@ -1,23 +1,22 @@
 package io.moviles.IPN_Tycoon.android
 
 import android.os.Bundle
-
 import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 import io.moviles.IPN_Tycoon.Main
-import io.moviles.IPN_Tycoon.android.database.RoomTester
+import io.moviles.IPN_Tycoon.android.database.AndroidGameSaveManager
+import io.moviles.IPN_Tycoon.android.database.DatabaseProvider
+import io.moviles.IPN_Tycoon.data.repositories.EscuelaRepository
 
-/** Launches the Android application. */
 class AndroidLauncher : AndroidApplication() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Probar base de datos solo en modo DEBUG
-        if (io.moviles.IPN_Tycoon.BuildConfig.DEBUG) {
-            RoomTester.testDatabase(this)
-        }
+        val db          = DatabaseProvider.getDatabase(this)
+        val repository  = EscuelaRepository(db.escuelaDao())
+        val saveManager = AndroidGameSaveManager(repository)
 
-        initialize(Main(), AndroidApplicationConfiguration().apply {
+        initialize(Main(saveManager), AndroidApplicationConfiguration().apply {
             useImmersiveMode = true
         })
     }

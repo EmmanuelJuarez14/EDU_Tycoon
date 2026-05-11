@@ -19,7 +19,6 @@ class SeleccionPartida(game: Main) : BaseScreen(game) {
 
     private var pixelFont: BitmapFont? = null
 
-    // --- ASSETS ---
     private val backgroundTexture: Texture by lazy {
         Texture("back_seleccion.png".toInternalFile()).apply {
             setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
@@ -39,7 +38,6 @@ class SeleccionPartida(game: Main) : BaseScreen(game) {
         Texture(pixmap).apply { setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest) }
     }
 
-    // --- FONT GENERATION ---
     private fun generatePixelFont(size: Int): BitmapFont {
         val fontFile = "font.ttf".toInternalFile()
         return if (fontFile.exists()) {
@@ -64,16 +62,14 @@ class SeleccionPartida(game: Main) : BaseScreen(game) {
         super.show()
         pixelFont = generatePixelFont(24)
 
-        // --- STYLES ---
         val drawable = NinePatchDrawable(NinePatch(buttonTexture, 4, 4, 4, 4))
         val customButtonStyle = TextButtonStyle().apply {
             font = pixelFont
-            up = drawable
+            up   = drawable
             over = drawable.tint(Color.valueOf("d1e8b2"))
             down = drawable.tint(Color.valueOf("a0a0a0"))
         }
 
-        // --- UI LAYOUT ---
         stage.actors {
             stack {
                 setFillParent(true)
@@ -91,9 +87,9 @@ class SeleccionPartida(game: Main) : BaseScreen(game) {
                         textButton("NUEVA PARTIDA") {
                             style = customButtonStyle
                             onChange {
-                                val screen = game.getScreen<GameScreen>()
                                 GameState.reset()
                                 PropiedadRepository.resetProgress()
+                                val screen = game.getScreen<GameScreen>()
                                 screen.modoCarga = false
                                 game.setScreen<GameScreen>()
                             }
@@ -101,12 +97,11 @@ class SeleccionPartida(game: Main) : BaseScreen(game) {
 
                         row()
 
+                        // ← ÚNICO CAMBIO: va a PartidasGuardadas en vez de GameScreen
                         textButton("CARGAR PARTIDA") {
                             style = customButtonStyle
                             onChange {
-                                val screen = game.getScreen<GameScreen>()
-                                screen.modoCarga = true
-                                game.setScreen<GameScreen>()
+                                game.setScreen<PartidasGuardadas>()
                             }
                         }.cell(width = 450f, height = 90f)
                     }.cell(padTop = 120f)
