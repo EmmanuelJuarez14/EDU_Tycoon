@@ -1,5 +1,6 @@
 package io.moviles.IPN_Tycoon
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
@@ -20,10 +21,13 @@ class DialogoActor(
 
     private val labelTexto: Label
     private val labelNombre: Label
+    private val labelPromptInput: Label // Etiqueta superior para guiar el input
     private val imagenPersonaje = Image()
     private val fondoBordeGuinda: Image
     private val fondoBlancoInterno: Image
     private val inputNombre: TextField
+    private val fondoInput: Image
+    private val overlayOscuro: Image // Para oscurecer el fondo al escribir
 
     var alTerminarNombre: ((String) -> Unit)? = null
     var alTerminarEscuela: ((String) -> Unit)? = null
@@ -37,7 +41,6 @@ class DialogoActor(
     private var tiempoAcumulado = 0f
     private val velocidadTexto = 0.03f
 
-    // --- TEXTURES ---
     private val whiteRegion: TextureRegion by lazy {
         val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
         pixmap.setColor(Color.WHITE)
@@ -51,6 +54,13 @@ class DialogoActor(
         val guindaIPN = Color.valueOf("660000")
         val blancoPuro = Color.WHITE
         val negroPuro = Color.BLACK
+
+        // --- OVERLAY ---
+        overlayOscuro = Image(TextureRegionDrawable(whiteRegion)).apply {
+            color = Color(0f, 0f, 0f, 0.6f)
+            isVisible = false
+            setFillParent(true)
+        }
 
         // --- STYLES ---
         val estiloTexto = Label.LabelStyle(font, negroPuro)
@@ -66,33 +76,41 @@ class DialogoActor(
             setFontScale(1.3f)
         }
 
-        // --- BACKGROUNDS ---
-        fondoBordeGuinda = Image(TextureRegionDrawable(whiteRegion)).apply {
-            color = guindaIPN
+        labelPromptInput = Label("", Label.LabelStyle(font, Color.WHITE)).apply {
+            setAlignment(Align.center)
+            setFontScale(1.5f)
+            isVisible = false
         }
 
-        fondoBlancoInterno = Image(TextureRegionDrawable(whiteRegion)).apply {
-            color = blancoPuro
+        // --- BACKGROUNDS ---
+        fondoBordeGuinda = Image(TextureRegionDrawable(whiteRegion)).apply { color = guindaIPN }
+        fondoBlancoInterno = Image(TextureRegionDrawable(whiteRegion)).apply { color = blancoPuro }
+        fondoInput = Image(TextureRegionDrawable(whiteRegion)).apply {
+            color = Color.valueOf("F5F5F5")
+            isVisible = false
         }
 
         // --- LAYOUT ---
         fondoBordeGuinda.setSize(760f, 160f)
         fondoBordeGuinda.setPosition(20f, 20f)
-
         fondoBlancoInterno.setSize(752f, 152f)
         fondoBlancoInterno.setPosition(24f, 24f)
-
         labelNombre.setPosition(50f, 135f)
         labelTexto.setSize(700f, 90f)
         labelTexto.setPosition(50f, 40f)
 
         inputNombre = TextField("", Scene2DSkin.defaultSkin).apply {
             isVisible = false
-            setSize(300f, 50f)
-            setPosition(50f, 50f)
+            setSize(500f, 80f)
+            setAlignment(Align.center)
             messageText = "Escribe aquí..."
 
-            // Listener para la tecla ENTER
+            val style = TextField.TextFieldStyle(this.style)
+            style.font = font
+            style.fontColor = negroPuro
+            style.cursor = Scene2DSkin.defaultSkin.newDrawable("white", guindaIPN).apply { minWidth = 2f }
+            this.style = style
+
             addListener(object : com.badlogic.gdx.scenes.scene2d.InputListener() {
                 override fun keyDown(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, keycode: Int): Boolean {
                     if (keycode == com.badlogic.gdx.Input.Keys.ENTER) {
@@ -108,17 +126,19 @@ class DialogoActor(
         imagenPersonaje.setPosition(500f, 170f)
 
         // --- HIERARCHY ---
+        addActor(overlayOscuro)
         addActor(imagenPersonaje)
         addActor(fondoBordeGuinda)
         addActor(fondoBlancoInterno)
         addActor(labelNombre)
         addActor(labelTexto)
+        addActor(fondoInput)
         addActor(inputNombre)
+        addActor(labelPromptInput)
 
         this.isVisible = false
     }
 
-    // --- DIALOGUE LOGIC ---
     fun mostrarConversacion(dialogos: List<Dialogo>) {
         this.listaDialogos = dialogos
         this.indiceActual = 0
@@ -138,25 +158,55 @@ class DialogoActor(
 
         labelNombre.setText(actual.nombre)
 
-        // Reemplazo de variables en el texto
         var textoFinal = actual.texto
-        variables.forEach { (clave, valor) ->
-            textoFinal = textoFinal.replace("{$clave}", valor)
-        }
+        variables.forEach { (clave, valor) -> textoFinal = textoFinal.replace("{$clave}", valor) }
 
         textoCompleto = textoFinal
         caracteresVisibles = 0
         tiempoAcumulado = 0f
         labelTexto.setText("")
 
-        // Lógica para mostrar input si es tipo INPUT
         if (actual.tipo == TipoDialogo.INPUT) {
-            inputNombre.isVisible = true
-            inputNombre.text = ""
-            stage?.keyboardFocus = inputNombre
+            prepararInput(textoFinal)
         } else {
-            inputNombre.isVisible = false
+            ocultarInput()
         }
+    }
+
+    private fun prepararInput(pregunta: String) {
+        overlayOscuro.isVisible = true
+        inputNombre.isVisible = true
+        fondoInput.isVisible = true
+        labelPromptInput.isVisible = true
+        inputNombre.text = ""
+
+        // Texto guía basado en lo que se pregunta
+        labelPromptInput.setText(pregunta)
+
+        val centroX = 800f / 2f
+        val posYInput = 320f
+
+        labelPromptInput.setPosition(centroX - labelPromptInput.width / 2f, posYInput + 100f)
+        inputNombre.setPosition(centroX - inputNombre.width / 2f, posYInput)
+
+        fondoInput.setBounds(
+            inputNombre.x - 10f,
+            inputNombre.y - 10f,
+            inputNombre.width + 20f,
+            inputNombre.height + 20f
+        )
+
+        stage?.keyboardFocus = inputNombre
+        Gdx.input.setOnscreenKeyboardVisible(true)
+    }
+
+    private fun ocultarInput() {
+        overlayOscuro.isVisible = false
+        inputNombre.isVisible = false
+        fondoInput.isVisible = false
+        labelPromptInput.isVisible = false
+        // Ocultar teclado físicamente en Android
+        Gdx.input.setOnscreenKeyboardVisible(false)
     }
 
     override fun act(delta: Float) {
@@ -187,11 +237,10 @@ class DialogoActor(
                         alTerminarEscuela?.invoke(inputNombre.text)
                     }
                     contadorInputs++
-
-                    inputNombre.isVisible = false
+                    ocultarInput()
                     stage?.keyboardFocus = null
                 } else {
-                    return // No avanzar si no hay texto
+                    return
                 }
             }
 
@@ -200,19 +249,16 @@ class DialogoActor(
                 actualizarContenido()
             } else {
                 this.isVisible = false
+                // Asegurar que se oculte el teclado al cerrar el diálogo
+                Gdx.input.setOnscreenKeyboardVisible(false)
             }
         }
     }
 
-    /**
-     * Retrocede al diálogo anterior.
-     * Retorna true si retrocedió, false si ya estaba en el primer diálogo.
-     */
     fun retroceder(): Boolean {
         if (indiceActual > 0) {
             indiceActual--
             actualizarContenido()
-            // Al retroceder, mostramos el texto completo de una vez
             caracteresVisibles = textoCompleto.length
             labelTexto.setText(textoCompleto)
             return true
@@ -221,11 +267,6 @@ class DialogoActor(
     }
 
     fun dispose() {
-        // Solo intentamos disponer si la textura fue creada (lazy)
-        // Pero TextureRegion no tiene forma directa de saber si su textura subyacente es la de whiteRegion
-        // así que lo manejamos con cuidado.
-        try {
-            whiteRegion.texture.dispose()
-        } catch (_: Exception) {}
+        try { whiteRegion.texture.dispose() } catch (_: Exception) {}
     }
 }
