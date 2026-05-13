@@ -1,22 +1,11 @@
 package io.moviles.IPN_Tycoon
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.kotcrab.vis.ui.widget.VisWindow
 import ktx.actors.onChange
 import ktx.scene2d.*
 
-/**
- * Ventana de gestión de un edificio.
- *
- * Flujo:
- *  • Si [data.comprada] == false  → muestra precio de compra, botón "COMPRAR"
- *  • Si [data.comprada] == true y [data.nivel] < [data.mejoraMax]
- *                                 → muestra costo de mejora, botón "MEJORAR"
- *  • Si [data.nivel] == [data.mejoraMax] → botón deshabilitado "NIVEL MÁXIMO"
- *
- * Al completar la acción llama a [onBuildingChanged] para que GameScreen
- * recargue la textura correcta.
- */
 class BuildingInfoWindow(
     private val data: Propiedad,
     private val onBuildingChanged: () -> Unit
@@ -33,13 +22,13 @@ class BuildingInfoWindow(
 
         when {
             !data.comprada -> {
-                costo       = data.precio
-                btnTexto    = "COMPRAR  \$${formatMoney(costo)}"
+                costo        = data.precio
+                btnTexto     = "COMPRAR  \$${fmt(costo)}"
                 puedeMejorar = true
             }
             data.nivel < data.mejoraMax -> {
                 costo        = GameState.costoMejora(data)
-                btnTexto     = "MEJORAR LVL ${data.nivel + 1}  \$${formatMoney(costo)}"
+                btnTexto     = "MEJORAR LVL ${data.nivel + 1}  \$${fmt(costo)}"
                 puedeMejorar = true
             }
             else -> {
@@ -52,12 +41,16 @@ class BuildingInfoWindow(
         add(scene2d.table {
 
             // ── Nombre ────────────────────────────────────────────────
-            label("[GOLD]${data.nombre}[]").cell(padBottom = 6f)
+            label(data.nombre) {
+                color = Color.GOLD
+            }.cell(padBottom = 6f)
             row()
 
             // ── Descripción ───────────────────────────────────────────
-            label(data.descripcion).apply { setWrap(true) }
-                .cell(width = 280f, padBottom = 10f)
+            label(data.descripcion) {
+                setWrap(true)
+                color = Color.LIGHT_GRAY
+            }.cell(width = 280f, padBottom = 10f)
             row()
 
             // ── Stats ─────────────────────────────────────────────────
@@ -65,12 +58,16 @@ class BuildingInfoWindow(
             label("Ingresos base: ${data.baseAlumnos} alumnos/ciclo"); row()
 
             if (data.comprada) {
-                label("[CYAN]Nivel actual: ${data.nivel} / ${data.mejoraMax}[]"); row()
+                label("Nivel actual: ${data.nivel} / ${data.mejoraMax}") {
+                    color = Color.CYAN
+                }
+                row()
             }
 
-            // ── Saldo del jugador ─────────────────────────────────────
-            label("[LIGHT_GRAY]Tu saldo: \$${formatMoney(GameState.dinero)}[]")
-                .cell(padTop = 6f, padBottom = 4f)
+            // ── Saldo ─────────────────────────────────────────────────
+            label("Tu saldo: \$${fmt(GameState.dinero)}") {
+                color = Color.LIGHT_GRAY
+            }.cell(padTop = 6f, padBottom = 4f)
             row()
 
             // ── Botón acción ──────────────────────────────────────────
@@ -81,8 +78,8 @@ class BuildingInfoWindow(
                     if (!puedeMejorar) return@onChange
 
                     if (!GameState.puedeComprar(costo)) {
-                        // Saldo insuficiente → feedback visual (sin cerrar)
-                        setText("[RED]¡Saldo insuficiente![]")
+                        setText("¡Saldo insuficiente!")
+                        color = Color.RED
                         isDisabled = true
                         return@onChange
                     }
@@ -106,14 +103,11 @@ class BuildingInfoWindow(
         centerWindow()
     }
 
-    fun show(stage: Stage) {
-        stage.addActor(this)
-    }
+    fun show(stage: Stage) { stage.addActor(this) }
 
-    // ── Helpers ───────────────────────────────────────────────────────
-    private fun formatMoney(amount: Long): String = when {
-        amount >= 1_000_000L -> "${"%.1f".format(amount / 1_000_000.0)}M"
-        amount >= 1_000L     -> "${"%.0f".format(amount / 1_000.0)}K"
-        else                 -> amount.toString()
+    private fun fmt(v: Long) = when {
+        v >= 1_000_000L -> "${"%.1f".format(v / 1_000_000.0)}M"
+        v >= 1_000L     -> "${"%.0f".format(v / 1_000.0)}K"
+        else            -> v.toString()
     }
 }

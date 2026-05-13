@@ -1,5 +1,6 @@
 package io.moviles.IPN_Tycoon
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.kotcrab.vis.ui.widget.VisWindow
 import ktx.actors.onChange
@@ -8,7 +9,7 @@ import ktx.scene2d.*
 class PauseMenuWindow(
     private val game: Main,
     private val onGoToMainMenu: () -> Unit
-) : VisWindow("⚙  MENÚ") {
+) : VisWindow("  MENÚ") {
 
     init {
         addCloseButton()
@@ -18,40 +19,34 @@ class PauseMenuWindow(
         add(scene2d.table {
             defaults().expandX().fillX().pad(6f)
 
-            // ── Guardar partida ───────────────────────────────────────
-            val saveBtn = textButton("💾  Guardar partida") {}
+            val saveBtn = textButton("Guardar partida") {}
             saveBtn.onChange {
-                // Solo guarda si hay un slot real asignado (no testing)
                 if (GameState.slotActual == 3 || GameState.slotActual == 0) {
-                    saveBtn.setText("ℹ Usa slot 1 o 2 para guardar")
+                    saveBtn.setText("Usa slot 1 o 2 para guardar")
                     return@onChange
                 }
                 saveBtn.isDisabled = true
-                saveBtn.setText("Guardando…")
+                saveBtn.setText("Guardando...")
                 game.saveManager.guardar(GameState.slotActual) { ok ->
-                    saveBtn.setText(if (ok) "✔ Guardado" else "✘ Error al guardar")
+                    saveBtn.setText(if (ok) "Guardado correctamente" else "Error al guardar")
                     saveBtn.isDisabled = false
                 }
             }
             row()
 
-            // ── Estadísticas ──────────────────────────────────────────
-            textButton("📊  Estadísticas") {
+            textButton("Estadísticas") {
                 onChange { StatsWindow().show(stage) }
             }
             row()
 
-            // ── Audio ─────────────────────────────────────────────────
             val audioBtn = textButton(audioLabel()) {}
             audioBtn.onChange {
                 GameState.musicaActiva = !GameState.musicaActiva
                 audioBtn.setText(audioLabel())
-                // TODO: conectar con MusicManager cuando esté listo
             }
             row()
 
-            // ── Menú principal ────────────────────────────────────────
-            textButton("🏠  Menú principal") {
+            textButton("Menu principal") {
                 onChange {
                     this@PauseMenuWindow.remove()
                     onGoToMainMenu()
@@ -64,32 +59,50 @@ class PauseMenuWindow(
     }
 
     private fun audioLabel() =
-        if (GameState.musicaActiva) "🔊  Audio: ON" else "🔇  Audio: OFF"
+        if (GameState.musicaActiva) "Audio: ON" else "Audio: OFF"
 
     fun show(stage: Stage) { stage.addActor(this) }
 }
 
 // ── Ventana de estadísticas ───────────────────────────────────────────
-class StatsWindow : VisWindow("📊  ${GameState.nombreEscuela.ifBlank { "Estadísticas" }}") {
+class StatsWindow : VisWindow("Estadísticas") {
 
     init {
         addCloseButton()
         closeOnEscape()
         isModal = false
 
-        val edificios      = PropiedadRepository.propiedades.values.count { it.comprada }
-        val alumnosTotales = PropiedadRepository.propiedades.values
+        val edificios     = PropiedadRepository.propiedades.values.count { it.comprada }
+        val alumnos       = PropiedadRepository.propiedades.values
             .filter { it.comprada }.sumOf { it.baseAlumnos * it.nivel }
-        val ingresosCiclo  = alumnosTotales * 100L
+        val ingresosCiclo = alumnos * 100L
 
         add(scene2d.table {
-            defaults().left().padBottom(8f)
-            label("[GOLD]💰  Dinero:[]  \$${fmt(GameState.dinero)}"); row()
-            label("[CYAN]🏫  Edificios:[]  $edificios comprados"); row()
-            label("[GREEN]👨‍🎓  Alumnos:[]  $alumnosTotales"); row()
-            label("[YELLOW]📈  Ingresos/ciclo:[]  \$${fmt(ingresosCiclo)}"); row()
-            label("[LIGHT_GRAY]🔄  Ciclos:[]  ${GameState.ciclosJugados}"); row()
-            label("[LIGHT_GRAY]👤  Jugador:[]  ${GameState.nombreJugador}"); row()
+
+            label("Dinero:") { color = Color.GOLD }.cell(padRight = 10f, padBottom = 8f)
+            label("\$${fmt(GameState.dinero)}").cell(padBottom = 8f)
+            row()
+
+            label("Edificios:") { color = Color.CYAN }.cell(padRight = 10f, padBottom = 8f)
+            label("$edificios comprados").cell(padBottom = 8f)
+            row()
+
+            label("Alumnos:") { color = Color.GREEN }.cell(padRight = 10f, padBottom = 8f)
+            label("$alumnos").cell(padBottom = 8f)
+            row()
+
+            label("Ingresos/ciclo:") { color = Color.YELLOW }.cell(padRight = 10f, padBottom = 8f)
+            label("\$${fmt(ingresosCiclo)}").cell(padBottom = 8f)
+            row()
+
+            label("Ciclos:") { color = Color.LIGHT_GRAY }.cell(padRight = 10f, padBottom = 8f)
+            label("${GameState.ciclosJugados}").cell(padBottom = 8f)
+            row()
+
+            label("Jugador:") { color = Color.LIGHT_GRAY }.cell(padRight = 10f, padBottom = 8f)
+            label(GameState.nombreJugador).cell(padBottom = 8f)
+            row()
+
         }).pad(20f).minWidth(260f)
 
         pack()
