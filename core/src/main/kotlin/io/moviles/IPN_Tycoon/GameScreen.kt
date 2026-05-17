@@ -320,7 +320,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
         stage.addActor(hudTable)
     }
 
-    // ── Render ────────────────────────────────────────────────────────
+    // ──Render ──────────────────────────────────────────────────────
     override fun render(delta: Float) {
         clearScreen(0f, 0f, 0f, 1f)
 
