@@ -5,7 +5,7 @@ import io.moviles.IPN_Tycoon.PropiedadRepository
 
 /**
  * Calcula ingresos pasivos de los edificios comprados cada ciclo.
- * Los gastos se añadirán via EventEngine cuando esté implementado.
+ * Los efectos de eventos se resuelven en el mismo ciclo mediante EventEngine.
  * Payback objetivo: ~10 ciclos por edificio básico.
  */
 class EconomyEngine : GameCycleListener {
