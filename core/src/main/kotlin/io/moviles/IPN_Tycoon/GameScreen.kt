@@ -430,8 +430,8 @@ class GameScreen(game: Main) : BaseScreen(game) {
             }
 
             cycleTimer += delta
-            if (cycleTimer >= cycleDuration) {
-                cycleTimer = 0f
+            while (cycleTimer >= cycleDuration) {
+                cycleTimer -= cycleDuration
                 cycleEngine.advanceCycle()
                 economyEngine.lastResult?.let { showCycleToast(it) }
             }
