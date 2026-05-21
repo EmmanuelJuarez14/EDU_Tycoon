@@ -55,11 +55,30 @@ class BuildingInfoWindow(
 
             // ── Stats ─────────────────────────────────────────────────
             label("Capacidad: ${data.capacidad} alumnos"); row()
-            label("Ingresos base: ${data.baseAlumnos} alumnos/ciclo"); row()
 
             if (data.comprada) {
                 label("Nivel actual: ${data.nivel} / ${data.mejoraMax}") {
                     color = Color.CYAN
+                }.cell(padBottom = 2f)
+                row()
+
+                val ingresoCiclo = data.baseAlumnos * data.nivel * 10L
+                label("Ingreso/ciclo: \$${fmt(ingresoCiclo)}") {
+                    color = Color.GREEN
+                }
+                row()
+
+                if (data.nivel < data.mejoraMax) {
+                    val ingresoSiguiente = data.baseAlumnos * (data.nivel + 1) * 10L
+                    label("Nivel ${data.nivel + 1}: \$${fmt(ingresoSiguiente)}/ciclo") {
+                        color = Color.LIGHT_GRAY
+                    }
+                    row()
+                }
+            } else {
+                val ingresoNivel1 = data.baseAlumnos * 1 * 10L
+                label("Ingreso al comprar: \$${fmt(ingresoNivel1)}/ciclo") {
+                    color = Color.GREEN
                 }
                 row()
             }
@@ -106,8 +125,8 @@ class BuildingInfoWindow(
     fun show(stage: Stage) { stage.addActor(this) }
 
     private fun fmt(v: Long) = when {
-        v >= 1_000_000L -> "${"%.1f".format(v / 1_000_000.0)}M"
-        v >= 1_000L     -> "${"%.0f".format(v / 1_000.0)}K"
+        v >= 1_000_000L -> "${"%.2f".format(v / 1_000_000.0)}M"
+        v >= 1_000L     -> "${"%.1f".format(v / 1_000.0)}K"
         else            -> v.toString()
     }
 }

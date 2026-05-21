@@ -56,12 +56,13 @@ class AndroidGameSaveManager(
             try {
                 val entity = repository.getBySlot(slot)
                 if (entity != null) {
-                    GameState.saveId        = entity.slot
-                    GameState.slotActual    = entity.slot
-                    GameState.dinero        = entity.dinero
-                    GameState.ciclosJugados = entity.ciclosJugados
-                    GameState.nombreJugador = entity.nombreJugador
-                    GameState.nombreEscuela = entity.nombreEscuela
+                    GameState.saveId         = entity.slot
+                    GameState.slotActual     = entity.slot
+                    GameState.dinero         = entity.dinero
+                    GameState.ciclosJugados  = entity.ciclosJugados
+                    GameState.nombreJugador  = entity.nombreJugador
+                    GameState.nombreEscuela  = entity.nombreEscuela
+                    GameState.alumnosTotales = entity.alumnosTotales
                     deserializarEdificios(entity.edificiosJson)
                     Gdx.app.postRunnable { onDone(true) }
                 } else {

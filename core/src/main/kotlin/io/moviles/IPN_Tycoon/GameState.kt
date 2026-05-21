@@ -13,6 +13,7 @@ object GameState {
     // ── Economía ──────────────────────────────────────────────────────
     private const val DINERO_INICIAL: Long = 100_500_000L
     var dinero: Long = DINERO_INICIAL
+    var alumnosTotales: Int = 0
 
     // ── API de dinero ─────────────────────────────────────────────────
     fun puedeComprar(costo: Long) = dinero >= costo
@@ -30,11 +31,12 @@ object GameState {
 
     // ── Reset completo para nueva partida ─────────────────────────────
     fun reset() {
-        saveId        = 0
-        slotActual    = 0
-        nombreJugador = ""
-        nombreEscuela = ""
-        ciclosJugados = 0
-        dinero        = DINERO_INICIAL
+        saveId         = 0
+        slotActual     = 0
+        nombreJugador  = ""
+        nombreEscuela  = ""
+        ciclosJugados  = 0
+        dinero         = DINERO_INICIAL
+        alumnosTotales = 0
     }
 }
