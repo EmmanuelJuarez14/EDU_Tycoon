@@ -9,5 +9,6 @@ data class Dialogo(
     val nombre: String,
     val texto: String,
     val spritePath: String,
-    val tipo: TipoDialogo = TipoDialogo.NORMAL
+    val tipo: TipoDialogo = TipoDialogo.NORMAL,
+    val alMostrar: (() -> Unit)? = null
 )

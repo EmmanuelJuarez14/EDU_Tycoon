@@ -14,7 +14,9 @@ import com.badlogic.gdx.maps.objects.RectangleMapObject
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.maps.tiled.renderers.IsometricTiledMapRenderer
+import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.InputListener
 import com.badlogic.gdx.scenes.scene2d.ui.Image
@@ -57,10 +59,11 @@ class GameScreen(game: Main) : BaseScreen(game) {
     // ── Cámara ────────────────────────────────────────────────────────
     private val camera = OrthographicCamera().apply {
         setToOrtho(false, 800f, 480f)
-        zoom = 8f
+        zoom = 5f
         position.set(-436f, 1360f, 0f)
     }
-    private var initialZoom = 8f
+    private var initialZoom = 5f
+    private val targetCameraPos = Vector3(-436f, 1360f, 0f)
 
     // ── Caché de texturas de edificios ────────────────────────────────
     private val buildingTextureCache = mutableMapOf<String, Texture?>()
@@ -93,9 +96,29 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
     // ── HUD ───────────────────────────────────────────────────────────
     private var moneyLabel: Label? = null
+    private var studentsLabel: Label? = null
+    private var reputationLabel: Label? = null
+    private var lastMoney: Long = -1
+    private var lastStudents: Int = -1
+    private var lastReputation: Int = -1
 
     // ── Estado ────────────────────────────────────────────────────────
     var modoCarga: Boolean = false
+    private var tutorialHighlightPos: Vector3? = null
+    private var tutorialTimer = 0f
+    private val highlightTexture: Texture by lazy {
+        val pixmap = Pixmap(64, 64, Pixmap.Format.RGBA8888)
+        pixmap.setColor(Color(1f, 1f, 1f, 1f))
+        pixmap.fillCircle(32, 32, 30)
+        Texture(pixmap).apply { setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
+    }
+
+    private data class BuildingRenderInfo(
+        val propiedad: Propiedad,
+        val worldX: Float,
+        val worldY: Float
+    )
+    private val buildingsToRender = mutableListOf<BuildingRenderInfo>()
 
     // ── Mapa auxiliar punto → propiedad ───────────────────────────────
     private val puntosAPropiedad = mapOf(
@@ -196,6 +219,8 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
             stage.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    if (event?.isHandled == true) return
+
                     dialogoActor?.let { actor ->
                         if (actor.isVisible) {
                             actor.avanzar()
@@ -205,6 +230,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
                             stage.root.clearListeners()
                             reAgregarListenerBack()
                             configurarControlesMapa()
+                            mostrarTutorial()
                         }
                     }
                 }
@@ -264,13 +290,13 @@ class GameScreen(game: Main) : BaseScreen(game) {
             }
 
             override fun pan(x: Float, y: Float, deltaX: Float, deltaY: Float): Boolean {
-                camera.translate(-deltaX * camera.zoom, deltaY * camera.zoom)
+                targetCameraPos.add(-deltaX * camera.zoom, deltaY * camera.zoom, 0f)
                 return true
             }
 
             override fun zoom(initialDistance: Float, distance: Float): Boolean {
                 val ratio = if (distance > 0) initialDistance / distance else 1f
-                camera.zoom = (initialZoom * ratio).coerceIn(1f, 15f)
+                camera.zoom = (initialZoom * ratio).coerceIn(1f, 8f)
                 return true
             }
 
@@ -280,26 +306,61 @@ class GameScreen(game: Main) : BaseScreen(game) {
         multiplexer.addProcessor(gestureDetector)
         Gdx.input.inputProcessor = multiplexer
 
+        prepararRenderizadoEdificios()
         setupHUD()
+    }
+
+    private fun prepararRenderizadoEdificios() {
+        buildingsToRender.clear()
+        val puntosLayer = map?.layers?.get("Puntos_origen") ?: return
+
+        puntosLayer.objects.filterIsInstance<PointMapObject>().forEach { obj ->
+            val rawName   = obj.name ?: ""
+            val propId    = puntosAPropiedad[rawName] ?: rawName
+            val propiedad = PropiedadRepository.getPropiedad(propId) ?: return@forEach
+
+            val worldX = obj.point.x + obj.point.y
+            val worldY = (obj.point.y - obj.point.x) * 0.5f
+
+            buildingsToRender.add(BuildingRenderInfo(propiedad, worldX, worldY))
+        }
     }
 
     // ── HUD ───────────────────────────────────────────────────────────
     private fun setupHUD() {
         val skin = Scene2DSkin.defaultSkin
         val labelStyle = Label.LabelStyle(skin.getFont("default-font"), Color.GOLD)
+        val studentsStyle = Label.LabelStyle(skin.getFont("default-font"), Color.CYAN)
 
         moneyLabel = Label(formatMoney(GameState.dinero), labelStyle).apply {
+            setFontScale(1.1f)
+        }
+
+        studentsLabel = Label("0", studentsStyle).apply {
             setFontScale(1.1f)
         }
 
         val hudTable = Table().apply {
             setFillParent(true)
             top()
+
+            // Contenedor de Money y Students
             add(Table().apply {
                 background = skin.newDrawable("white", Color(0f, 0f, 0f, 0.45f))
                 pad(8f)
-                add(Label("$  ", labelStyle))
-                add(moneyLabel)
+
+                // Fila de Dinero
+                add(Label("$ ", labelStyle))
+                add(moneyLabel).padRight(20f)
+
+                // Fila de Estudiantes
+                add(Label("Alumnos: ", studentsStyle))
+                add(studentsLabel).padRight(20f)
+
+                // Reputación (Porcentaje)
+                add(Label("Reputación: ", labelStyle)).padRight(5f)
+                reputationLabel = Label("0%", labelStyle).apply { setFontScale(1.1f) }
+                add(reputationLabel)
             }).left().expandX().pad(10f)
 
             // Icono de menú puro (solo imagen, sin fondo, 38x38)
@@ -325,48 +386,100 @@ class GameScreen(game: Main) : BaseScreen(game) {
         clearScreen(0f, 0f, 0f, 1f)
 
         if (modoCarga) {
-            renderer?.let { r ->
-                camera.update()
-                r.setView(camera)
-
-                // Renderiza todas las capas EXCEPTO "Edificios"
-                // (los edificios los dibujamos nosotros según nivel y compra)
-                r.render(layerIndicesToRender)
-
-                r.batch.begin()
-                try {
-                    map?.layers?.get("Puntos_origen")
-                        ?.objects?.filterIsInstance<PointMapObject>()
-                        ?.forEach { obj ->
-                            val rawName   = obj.name ?: ""
-                            val propId    = puntosAPropiedad[rawName] ?: rawName
-                            val propiedad = PropiedadRepository.getPropiedad(propId) ?: return@forEach
-                            if (!propiedad.comprada) return@forEach
-
-                            val texture = getBuildingTexture(propiedad) ?: return@forEach
-                            val worldX  = obj.point.x + obj.point.y
-                            val worldY  = (obj.point.y - obj.point.x) * 0.5f
-
-                            r.batch.draw(
-                                texture,
-                                worldX - (propiedad.renderW / 2f),
-                                worldY,
-                                propiedad.renderW,
-                                propiedad.renderH
-                            )
-                        }
-                } catch (e: Exception) {
-                    Gdx.app.error("RENDER", "Error dibujando edificios: ${e.message}")
-                }
-                r.batch.end()
-            }
-
-            moneyLabel?.setText(formatMoney(GameState.dinero))
+            actualizarCamara()
+            renderizarMundo(delta)
+            actualizarIndicadoresHUD()
         }
 
-        // Siempre se ejecuta
+        // Siempre se ejecuta (HUD y Diálogos)
         stage.act(delta)
         stage.draw()
+    }
+
+    private fun actualizarCamara() {
+        camera.position.lerp(targetCameraPos, 0.2f)
+        camera.update()
+        renderer?.setView(camera)
+    }
+
+    private fun renderizarMundo(delta: Float) {
+        val r = renderer ?: return
+
+        // 1. Capas base del mapa
+        r.render(layerIndicesToRender)
+
+        // 2. Edificios y Efectos (Tutorial)
+        r.batch.begin()
+        try {
+            // Dibujar Edificios
+            for (info in buildingsToRender) {
+                if (!info.propiedad.comprada) continue
+                val texture = getBuildingTexture(info.propiedad) ?: continue
+                r.batch.draw(
+                    texture,
+                    info.worldX - (info.propiedad.renderW / 2f),
+                    info.worldY,
+                    info.propiedad.renderW,
+                    info.propiedad.renderH
+                )
+            }
+
+            // Dibujar Resaltado de Tutorial
+            tutorialHighlightPos?.let { pos ->
+                tutorialTimer += delta
+                val pulse = 1f + 0.3f * MathUtils.sin(tutorialTimer * 10f)
+                val size = 400f * pulse
+
+                r.batch.color = Color(1f, 0.9f, 0f, 0.5f)
+                r.batch.draw(
+                    highlightTexture,
+                    pos.x - size / 2f,
+                    pos.y - size / 4f,
+                    size,
+                    size / 2f
+                )
+                r.batch.color = Color.WHITE
+            }
+        } catch (e: Exception) {
+            Gdx.app.error("RENDER", "Error en renderizado de mundo: ${e.message}")
+        }
+        r.batch.end()
+    }
+
+    private fun actualizarIndicadoresHUD() {
+        // Dinero
+        if (GameState.dinero != lastMoney) {
+            lastMoney = GameState.dinero
+            moneyLabel?.setText(formatMoney(lastMoney))
+        }
+
+        // Alumnos
+        val currentStudents = PropiedadRepository.propiedades.values
+            .filter { it.comprada }.sumOf { it.baseAlumnos * it.nivel }
+
+        if (currentStudents != lastStudents) {
+            lastStudents = currentStudents
+            studentsLabel?.setText(lastStudents.toString())
+        }
+
+        // Reputación
+        val totalMaxLevel = PropiedadRepository.propiedades.values.sumOf { it.mejoraMax }
+        val currentTotalLevel = PropiedadRepository.propiedades.values
+            .filter { it.comprada }.sumOf { it.nivel }
+
+        val reputation = if (totalMaxLevel > 0) {
+            ((currentTotalLevel.toFloat() / totalMaxLevel) * 100).toInt().coerceIn(0, 100)
+        } else 0
+
+        if (reputation != lastReputation) {
+            lastReputation = reputation
+            reputationLabel?.setText("$lastReputation%")
+            reputationLabel?.color = when {
+                reputation >= 80 -> Color.GOLD
+                reputation >= 50 -> Color.YELLOW
+                else -> Color.WHITE
+            }
+        }
     }
 
     // ── Resize / Dispose ──────────────────────────────────────────────
@@ -381,9 +494,57 @@ class GameScreen(game: Main) : BaseScreen(game) {
         super.dispose()
         backgroundTexture.dispose()
         menuIconTexture.dispose()
+        highlightTexture.dispose()
         buildingTextureCache.values.forEach { it?.dispose() }
         buildingTextureCache.clear()
         map?.dispose()
+    }
+
+    private fun getBuildingPos(id: String): Vector3? {
+        return buildingsToRender.find { it.propiedad.id == id }?.let { Vector3(it.worldX, it.worldY, 0f) }
+    }
+
+    private fun mostrarTutorial() {
+        val posEscom = getBuildingPos("escom_hitbox")
+        val posDireccion = getBuildingPos("Direccion")
+
+        dialogoActor?.let { actor ->
+            actor.isVisible = true
+            actor.mostrarConversacion(listOf(
+                Dialogo("Ing. Cárdenas", "¡Bienvenido, Director! Vamos a darte un recorrido rápido por las herramientas de gestión.", "sprite_saludando.png") {
+                    targetCameraPos.set(-436f, 1360f, 0f)
+                    camera.zoom = 6f
+                    tutorialHighlightPos = null
+                },
+                Dialogo("Ing. Cárdenas", "Mira arriba a la izquierda. Ese es tu Presupuesto. Úsalo sabiamente para expandir el campus.", "sprite_explicando.png"),
+                Dialogo("Ing. Cárdenas", "A su lado verás el número de Alumnos. Entre más y mejores edificios tengas, más estudiantes atraerás.", "sprite_hablando.png"),
+                Dialogo("Ing. Cárdenas", "La Reputación indica el progreso global de tu institución. ¡Tu meta es alcanzar el 100%!", "sprite_serio.png"),
+                Dialogo("Ing. Cárdenas", "Para crecer, simplemente toca cualquier edificio o terreno en el mapa.", "sprite_hablando.png") {
+                    posEscom?.let {
+                        targetCameraPos.set(it.x, it.y, 0f)
+                        initialZoom = 3f
+                        camera.zoom = 3f
+                        tutorialHighlightPos = it
+                    }
+                },
+                Dialogo("Ing. Cárdenas", "Al tocar un lugar como la ESCOM, se abrirá una ventana para comprarlo o subirlo de nivel.", "sprite_explicando.png"),
+                Dialogo("Ing. Cárdenas", "Subir de nivel un edificio aumenta su capacidad de alumnos y la reputación de la escuela.", "sprite_hablando.png") {
+                    posDireccion?.let {
+                        targetCameraPos.set(it.x, it.y, 0f)
+                        initialZoom = 4f
+                        camera.zoom = 4f
+                        tutorialHighlightPos = it
+                    }
+                },
+                Dialogo("Ing. Cárdenas", "No olvides explorar todo el campus arrastrando el dedo y haciendo zoom.", "sprite_saludando.png") {
+                    targetCameraPos.set(-436f, 1360f, 0f)
+                    initialZoom = 5f
+                    camera.zoom = 5f
+                    tutorialHighlightPos = null
+                },
+                Dialogo("Ing. Cárdenas", "¡Ahora sí, pon la técnica al servicio de la patria! ¡¡HUÉLUM!!", "sprite_saludando.png")
+            ))
+        }
     }
 
     private fun formatMoney(v: Long) = when {
