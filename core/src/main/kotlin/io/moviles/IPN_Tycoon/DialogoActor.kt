@@ -137,6 +137,16 @@ class DialogoActor(
         addActor(labelPromptInput)
 
         this.isVisible = false
+
+        // --- INTERACTION ---
+        addListener(object : com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
+            override fun clicked(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) {
+                if (isVisible) {
+                    avanzar()
+                    event?.handle()
+                }
+            }
+        })
     }
 
     fun mostrarConversacion(dialogos: List<Dialogo>) {
@@ -150,6 +160,8 @@ class DialogoActor(
     private fun actualizarContenido() {
         if (indiceActual >= listaDialogos.size) return
         val actual = listaDialogos[indiceActual]
+
+        actual.alMostrar?.invoke()
 
         try {
             val region = textureManager(actual.spritePath)
