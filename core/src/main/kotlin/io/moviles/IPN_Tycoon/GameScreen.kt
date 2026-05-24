@@ -25,12 +25,33 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Scaling
+import com.badlogic.gdx.scenes.scene2d.actions.Actions
+import io.moviles.IPN_Tycoon.engine.EconomyEngine
+import io.moviles.IPN_Tycoon.engine.EstudiantesEngine
+import io.moviles.IPN_Tycoon.engine.EventEngine
+import io.moviles.IPN_Tycoon.engine.EventoEfecto
+import io.moviles.IPN_Tycoon.engine.GameCycleEngine
+import io.moviles.IPN_Tycoon.engine.GameEvent
 import ktx.actors.onChange
 import ktx.app.clearScreen
 import ktx.assets.toInternalFile
 import ktx.scene2d.*
 
 class GameScreen(game: Main) : BaseScreen(game) {
+
+    // ── Motor de ciclos ───────────────────────────────────────────────
+    private val cycleEngine       = GameCycleEngine()
+    private val economyEngine     = EconomyEngine()
+    private val estudiantesEngine = EstudiantesEngine()
+    private val eventEngine       = EventEngine { evento -> showEventToast(evento) }
+    private var cycleTimer        = 0f
+    private val cycleDuration     = 60f
+
+    init {
+        cycleEngine.addListener(economyEngine)
+        cycleEngine.addListener(estudiantesEngine)
+        cycleEngine.addListener(eventEngine)
+    }
 
     // ── Mapa ──────────────────────────────────────────────────────────
     private val map: TiledMap? by lazy {
@@ -95,12 +116,18 @@ class GameScreen(game: Main) : BaseScreen(game) {
     }
 
     // ── HUD ───────────────────────────────────────────────────────────
-    private var moneyLabel: Label? = null
-    private var studentsLabel: Label? = null
-    private var reputationLabel: Label? = null
-    private var lastMoney: Long = -1
-    private var lastStudents: Int = -1
-    private var lastReputation: Int = -1
+    private var moneyLabel:       Label? = null
+    private var alumnosLabel:     Label? = null
+    private var reputationLabel:  Label? = null
+    private var lastMoney:        Long = -1
+    private var lastStudents:     Int = -1
+    private var lastReputation:   Int = -1
+    private var toastLine1:       Label? = null   // ingresos del ciclo
+    private var toastLine2:       Label? = null   // total alumnos
+    private var toastTable:       Table? = null
+    private var eventTituloLabel: Label? = null
+    private var eventEfectoLabel: Label? = null
+    private var eventTable:       Table? = null
 
     // ── Estado ────────────────────────────────────────────────────────
     var modoCarga: Boolean = false
@@ -328,42 +355,75 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
     // ── HUD ───────────────────────────────────────────────────────────
     private fun setupHUD() {
-        val skin = Scene2DSkin.defaultSkin
-        val labelStyle = Label.LabelStyle(skin.getFont("default-font"), Color.GOLD)
-        val studentsStyle = Label.LabelStyle(skin.getFont("default-font"), Color.CYAN)
+        val skin          = Scene2DSkin.defaultSkin
+        val font          = skin.getFont("default-font")
+        val goldStyle     = Label.LabelStyle(font, Color.GOLD)
+        val cyanStyle     = Label.LabelStyle(font, Color.CYAN)
+        val whiteDrawable = skin.newDrawable("white", Color(0f, 0f, 0f, 0.45f))
+        val toastBg       = skin.newDrawable("white", Color(0f, 0f, 0f, 0.72f))
 
-        moneyLabel = Label(formatMoney(GameState.dinero), labelStyle).apply {
-            setFontScale(1.1f)
-        }
+        moneyLabel   = Label(formatMoney(GameState.dinero), goldStyle).apply { setFontScale(1.1f) }
+        alumnosLabel = Label(formatAlumnos(GameState.alumnosTotales), cyanStyle).apply { setFontScale(1.1f) }
 
-        studentsLabel = Label("0", studentsStyle).apply {
-            setFontScale(1.1f)
+        // ── Toast de ciclo (actor permanente, empieza invisible) ──────
+        toastLine1 = Label("", Label.LabelStyle(font, Color.GREEN))
+        toastLine2 = Label("", Label.LabelStyle(font, Color.CYAN))
+
+        val sw = stage.width
+        val sh = stage.height
+
+        // ── Toast de ciclo ────────────────────────────────────────────
+        toastTable = Table().apply {
+            background = toastBg
+            pad(8f, 16f, 8f, 16f)
+            defaults().left().padBottom(2f)
+            add(toastLine1).row()
+            add(toastLine2)
+            pack()
+            color.a = 0f
+            setPosition((sw - width) / 2f, sh * 0.08f)
         }
+        stage.addActor(toastTable)
+
+        // ── Toast de eventos (más arriba, fondo más oscuro) ───────────
+        eventTituloLabel = Label("", Label.LabelStyle(font, Color.WHITE))
+        eventEfectoLabel = Label("", Label.LabelStyle(font, Color.WHITE))
+        val eventBg = skin.newDrawable("white", Color(0.1f, 0.05f, 0.2f, 0.85f))
+        eventTable = Table().apply {
+            background = eventBg
+            pad(10f, 18f, 10f, 18f)
+            defaults().left().padBottom(3f)
+            add(eventTituloLabel).row()
+            add(eventEfectoLabel)
+            pack()
+            color.a = 0f
+            setPosition((sw - width) / 2f, sh * 0.22f)
+        }
+        stage.addActor(eventTable)
 
         val hudTable = Table().apply {
             setFillParent(true)
             top()
 
-            // Contenedor de Money y Students
+            // Contenedor de Money, Alumnos y Reputación
             add(Table().apply {
-                background = skin.newDrawable("white", Color(0f, 0f, 0f, 0.45f))
+                background = whiteDrawable
                 pad(8f)
 
-                // Fila de Dinero
-                add(Label("$ ", labelStyle))
+                // Dinero
+                add(Label("$ ", goldStyle))
                 add(moneyLabel).padRight(20f)
 
-                // Fila de Estudiantes
-                add(Label("Alumnos: ", studentsStyle))
-                add(studentsLabel).padRight(20f)
+                // Alumnos
+                add(Label("Alumnos: ", cyanStyle))
+                add(alumnosLabel).padRight(20f)
 
                 // Reputación (Porcentaje)
-                add(Label("Reputación: ", labelStyle)).padRight(5f)
-                reputationLabel = Label("0%", labelStyle).apply { setFontScale(1.1f) }
+                add(Label("Reputación: ", goldStyle)).padRight(5f)
+                reputationLabel = Label("0%", goldStyle).apply { setFontScale(1.1f) }
                 add(reputationLabel)
             }).left().expandX().pad(10f)
 
-            // Icono de menú puro (solo imagen, sin fondo, 38x38)
             add(scene2d.image(menuIconTexture) {
                 setScaling(Scaling.fit)
                 setAlign(Align.center)
@@ -381,13 +441,14 @@ class GameScreen(game: Main) : BaseScreen(game) {
         stage.addActor(hudTable)
     }
 
-    // ──Render ──────────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────────────
     override fun render(delta: Float) {
         clearScreen(0f, 0f, 0f, 1f)
 
         if (modoCarga) {
             actualizarCamara()
             renderizarMundo(delta)
+            actualizarCicloDeJuego(delta)
             actualizarIndicadoresHUD()
         }
 
@@ -446,6 +507,19 @@ class GameScreen(game: Main) : BaseScreen(game) {
         r.batch.end()
     }
 
+    /**
+     * Avance del ciclo de juego — fuera del batch de render para evitar
+     * problemas si el listener del ciclo dispara cambios visuales.
+     */
+    private fun actualizarCicloDeJuego(delta: Float) {
+        cycleTimer += delta
+        while (cycleTimer >= cycleDuration) {
+            cycleTimer -= cycleDuration
+            cycleEngine.advanceCycle()
+            economyEngine.lastResult?.let { showCycleToast(it) }
+        }
+    }
+
     private fun actualizarIndicadoresHUD() {
         // Dinero
         if (GameState.dinero != lastMoney) {
@@ -459,7 +533,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
         if (currentStudents != lastStudents) {
             lastStudents = currentStudents
-            studentsLabel?.setText(lastStudents.toString())
+            alumnosLabel?.setText(formatAlumnos(lastStudents))
         }
 
         // Reputación
@@ -500,6 +574,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
         map?.dispose()
     }
 
+    // ── Tutorial ──────────────────────────────────────────────────────
     private fun getBuildingPos(id: String): Vector3? {
         return buildingsToRender.find { it.propiedad.id == id }?.let { Vector3(it.worldX, it.worldY, 0f) }
     }
@@ -547,9 +622,60 @@ class GameScreen(game: Main) : BaseScreen(game) {
         }
     }
 
+    // ── Toasts de ciclo y eventos ─────────────────────────────────────
+    private fun showCycleToast(result: EconomyEngine.CycleResult) {
+        val toast = toastTable ?: return
+
+        toastLine1?.setText("Ingresos:  +${formatMoney(result.ingresos)}")
+        toastLine2?.setText("Alumnos:    ${formatAlumnos(GameState.alumnosTotales)}")
+
+        toast.clearActions()
+        toast.color.a = 0f
+        toast.invalidateHierarchy()
+        toast.pack()
+        toast.setPosition((stage.width - toast.width) / 2f, stage.height * 0.08f)
+        toast.addAction(Actions.sequence(
+            Actions.fadeIn(0.25f),
+            Actions.delay(3.5f),
+            Actions.fadeOut(0.4f)
+        ))
+    }
+
+    private fun showEventToast(evento: GameEvent) {
+        val toast = eventTable ?: return
+        val esGasto = evento.efecto is EventoEfecto.Gasto
+
+        val cantidad = when (val e = evento.efecto) {
+            is EventoEfecto.Gasto   -> e.cantidad
+            is EventoEfecto.Ingreso -> e.cantidad
+        }
+        val signo = if (esGasto) "-" else "+"
+
+        eventTituloLabel?.setText(evento.titulo)
+        eventTituloLabel?.setColor(if (esGasto) Color.RED else Color.GREEN)
+        eventEfectoLabel?.setText("${signo}\$${formatMoney(cantidad)}  —  ${evento.descripcion}")
+        eventEfectoLabel?.setColor(if (esGasto) Color.RED else Color.GREEN)
+
+        toast.clearActions()
+        toast.color.a = 0f
+        toast.invalidateHierarchy()
+        toast.pack()
+        toast.setPosition((stage.width - toast.width) / 2f, stage.height * 0.22f)
+        toast.addAction(Actions.sequence(
+            Actions.fadeIn(0.25f),
+            Actions.delay(5f),
+            Actions.fadeOut(0.4f)
+        ))
+    }
+
     private fun formatMoney(v: Long) = when {
-        v >= 1_000_000L -> "${"%.1f".format(v / 1_000_000.0)}M"
-        v >= 1_000L     -> "${"%.0f".format(v / 1_000.0)}K"
+        v >= 1_000_000L -> "${"%.2f".format(v / 1_000_000.0)}M"
+        v >= 1_000L     -> "${"%.1f".format(v / 1_000.0)}K"
         else            -> v.toString()
+    }
+
+    private fun formatAlumnos(v: Int) = when {
+        v >= 1_000 -> "${"%.1f".format(v / 1_000.0)}K"
+        else       -> v.toString()
     }
 }

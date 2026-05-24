@@ -4,30 +4,28 @@ import io.moviles.IPN_Tycoon.GameState
 import io.moviles.IPN_Tycoon.PropiedadRepository
 
 /**
- * Sistema de economía por ciclo.
- * Lee el estado de edificios directamente desde PropiedadRepository (in-memory)
- * y actualiza GameState.dinero — Room se sincroniza solo al guardar partida.
+ * Calcula ingresos pasivos de los edificios comprados cada ciclo.
+ * Los efectos de eventos se resuelven en el mismo ciclo mediante EventEngine.
+ * Payback objetivo: ~10 ciclos por edificio básico.
  */
 class EconomyEngine : GameCycleListener {
 
     override val resolutionOrder = ResolutionOrder.ECONOMY
 
-    private val INGRESO_POR_ALUMNO     = 10L
-    private val GASTO_BASE_POR_NIVEL   = 500L
+    private val INGRESO_POR_ALUMNO = 50L   // era 10 → payback ~10 ciclos para edificios básicos
+
+    data class CycleResult(val ingresos: Long)
+
+    var lastResult: CycleResult? = null
+        private set
 
     override fun onResolveCycle(cycle: Int) {
-        val propiedadesActivas = PropiedadRepository.propiedades.values.filter { it.comprada }
+        val ingresosTotales = PropiedadRepository.propiedades.values
+            .filter { it.comprada }
+            .sumOf { it.baseAlumnos * it.nivel * INGRESO_POR_ALUMNO }
 
-        var ingresosTotales = 0L
-        var gastosTotales   = 0L
-
-        propiedadesActivas.forEach { propiedad ->
-            ingresosTotales += propiedad.baseAlumnos * propiedad.nivel * INGRESO_POR_ALUMNO
-            gastosTotales   += propiedad.nivel * GASTO_BASE_POR_NIVEL
-        }
-
-        val balanceNeto = ingresosTotales - gastosTotales
-        GameState.acreditar(balanceNeto)
+        lastResult = CycleResult(ingresosTotales)
+        GameState.acreditar(ingresosTotales)
         GameState.ciclosJugados++
     }
 }
