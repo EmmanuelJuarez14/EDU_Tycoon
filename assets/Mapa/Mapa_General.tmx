@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.0" orientation="isometric" renderorder="right-down" width="500" height="500" tilewidth="64" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="61">
+<map version="1.10" tiledversion="1.12.0" orientation="isometric" renderorder="right-down" width="500" height="500" tilewidth="64" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="65">
  <tileset firstgid="1" source="calles/calles.tsx"/>
  <tileset firstgid="101" source="Edificio1Mini.tsx"/>
  <tileset firstgid="102" name="palapas" tilewidth="2400" tileheight="1308" tilecount="1" columns="0">
@@ -65,7 +65,7 @@
   <object id="19" name="palapas" x="32" y="30" width="884" height="1244"/>
   <object id="20" name="cafeteria" x="1340" y="50" width="1072" height="752"/>
   <object id="22" name="Direccion" x="3612" y="7528" width="3232" height="4072"/>
-  <object id="24" name="Mac_and_cheese" x="10296" y="12936" width="1728" height="2080"/>
+  <object id="24" name="Mac_and_cheese" x="8504" y="3720" width="1728" height="2080"/>
   <object id="25" x="6648" y="10472"/>
   <object id="26" name="auditorio" x="800" y="12424" width="2792" height="2976"/>
   <object id="27" name="Arquitectura" x="6136" y="968" width="2280" height="2296"/>
@@ -79,8 +79,8 @@
   <object id="35" x="5944" y="3784"/>
   <object id="36" name="Edificio2" x="5944" y="3760" width="1080" height="2784"/>
   <object id="37" x="7552" y="3872"/>
-  <object id="38" name="Museo" x="7456" y="3776" width="3736" height="2184"/>
-  <object id="39" name="Turismo" x="8416" y="11136" width="1192" height="984"/>
+  <object id="38" name="Museo" x="11264" y="10720" width="3736" height="3736"/>
+  <object id="39" name="Turismo" x="7720" y="10328" width="1888" height="1792"/>
  </objectgroup>
  <objectgroup id="10" name="Puntos_origen">
   <object id="40" name="escom_hitbox" x="2484" y="3164">
@@ -108,6 +108,18 @@
    <point/>
   </object>
   <object id="59" name="auditorio" x="3456" y="15264">
+   <point/>
+  </object>
+  <object id="61" name="Turismo" x="9588" y="12112">
+   <point/>
+  </object>
+  <object id="62" name="Matematicas" x="10488" y="8808">
+   <point/>
+  </object>
+  <object id="63" name="Museo" x="14992" y="14640">
+   <point/>
+  </object>
+  <object id="64" name="Arquitectura" x="8428" y="3276">
    <point/>
   </object>
  </objectgroup>

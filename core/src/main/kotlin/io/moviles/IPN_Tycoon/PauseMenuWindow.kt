@@ -21,10 +21,13 @@ class PauseMenuWindow(
 
             val saveBtn = textButton("Guardar partida") {}
             saveBtn.onChange {
-                if (GameState.slotActual == 3 || GameState.slotActual == 0) {
-                    saveBtn.setText("Usa slot 1 o 2 para guardar")
+                if (GameState.slotActual == 0) {
+                    SaveSelectionWindow(game) { ok ->
+                        saveBtn.setText(if (ok) "Guardado correctamente" else "Error al guardar")
+                    }.show(stage)
                     return@onChange
                 }
+
                 saveBtn.isDisabled = true
                 saveBtn.setText("Guardando...")
                 game.saveManager.guardar(GameState.slotActual) { ok ->

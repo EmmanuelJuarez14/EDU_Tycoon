@@ -190,7 +190,7 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
                     if (ok) { gameScreen.modoCarga = true; game.setScreen<GameScreen>() }
                 }
             } else {
-                GameState.reset(); GameState.slotActual = 1
+                GameState.reset(GameState.DINERO_INICIAL_REAL); GameState.slotActual = 1
                 PropiedadRepository.resetProgress()
                 gameScreen.modoCarga = false
                 game.setScreen<GameScreen>()
@@ -201,14 +201,16 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
                     if (ok) { gameScreen.modoCarga = true; game.setScreen<GameScreen>() }
                 }
             } else {
-                GameState.reset(); GameState.slotActual = 2
+                GameState.reset(GameState.DINERO_INICIAL_REAL); GameState.slotActual = 2
                 PropiedadRepository.resetProgress()
                 gameScreen.modoCarga = false
                 game.setScreen<GameScreen>()
             }
 
             3 -> {
+                GameState.reset(GameState.DINERO_INICIAL_TEST)
                 GameState.slotActual = 3
+                PropiedadRepository.resetProgress() // Asegurar mapa limpio para test
                 gameScreen.modoCarga = true
                 game.setScreen<GameScreen>()
             }
