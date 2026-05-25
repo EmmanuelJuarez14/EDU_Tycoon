@@ -184,6 +184,9 @@ class GameScreen(game: Main) : BaseScreen(game) {
         val skin   = Scene2DSkin.defaultSkin
         val fuente = skin.getFont("default-font")
 
+        // Limpiar caché al entrar para evitar estados corruptos entre partidas
+        buildingTextureCache.clear()
+
         if (dialogoActor == null) {
             dialogoActor = DialogoActor(fuente) { path ->
                 TextureRegion(Texture(path.toInternalFile()))

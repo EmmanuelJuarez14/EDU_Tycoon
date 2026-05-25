@@ -225,7 +225,7 @@ object PropiedadRepository {
 
         // ── PALAPAS ───────────────────────────────────────────────────
         // TMX: 1997 × 1069
-        "Palapas" to Propiedad(
+        "palapas" to Propiedad(
             id            = "palapas",
             nombre        = "Palapas",
             precio        = 350_000L,
@@ -239,7 +239,8 @@ object PropiedadRepository {
         )
     )
 
-    fun getPropiedad(id: String): Propiedad? = propiedades[id]
+    fun getPropiedad(id: String): Propiedad? =
+        propiedades[id] ?: propiedades.values.find { it.id.equals(id, ignoreCase = true) }
 
     fun resetProgress() {
         propiedades.values.forEach { it.nivel = 0; it.comprada = false }
