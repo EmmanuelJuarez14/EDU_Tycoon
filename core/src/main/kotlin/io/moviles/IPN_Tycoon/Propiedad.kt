@@ -33,7 +33,7 @@ object PropiedadRepository {
         // TMX: 3728 × 1968
         "escom_hitbox" to Propiedad(
             id            = "escom_hitbox",
-            nombre        = "ESCOM",
+            nombre        = "Escuela de Computación",
             precio        = 300_000L,
             descripcion   = "Escuela Superior de Cómputo",
             capacidad     = 3200,
@@ -107,7 +107,7 @@ object PropiedadRepository {
         // Sin textura todavía — tamaño estimado
         "Arquitectura" to Propiedad(
             id            = "Arquitectura",
-            nombre        = "ESIA Arquitectura",
+            nombre        = "Arquitectura",
             precio        = 1_100_000L,
             descripcion   = "Escuela de construcción y diseño",
             capacidad     = 2500,
@@ -122,7 +122,7 @@ object PropiedadRepository {
         // TMX: 5280 × 3164
         "Biologicas" to Propiedad(
             id            = "Biologicas",
-            nombre        = "ENCB Biológicas",
+            nombre        = "Biológicas",
             precio        = 1_250_000L,
             descripcion   = "Ciencias biológicas",
             capacidad     = 2800,
@@ -137,7 +137,7 @@ object PropiedadRepository {
         // TMX: 5132 × 3363
         "Bioquimica" to Propiedad(
             id            = "Bioquimica",
-            nombre        = "ENCB Bioquímica",
+            nombre        = "Bioquímica",
             precio        = 1_250_000L,
             descripcion   = "Ciencias bioquímicas",
             capacidad     = 2800,
@@ -152,7 +152,7 @@ object PropiedadRepository {
         // Sin textura todavía — tamaño estimado
         "Matematicas" to Propiedad(
             id            = "Matematicas",
-            nombre        = "ESFM Matemáticas",
+            nombre        = "Matemáticas",
             precio        = 1_000_000L,
             descripcion   = "Física y Matemáticas",
             capacidad     = 1500,
@@ -212,7 +212,7 @@ object PropiedadRepository {
         // Sin textura todavía — tamaño estimado
         "Turismo" to Propiedad(
             id            = "Turismo",
-            nombre        = "EST Turismo",
+            nombre        = "Turismo",
             precio        = 900_000L,
             descripcion   = "Escuela de Turismo",
             capacidad     = 2200,

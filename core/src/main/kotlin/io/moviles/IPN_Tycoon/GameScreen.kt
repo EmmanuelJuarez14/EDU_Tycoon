@@ -17,6 +17,8 @@ import com.badlogic.gdx.maps.tiled.renderers.IsometricTiledMapRenderer
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.graphics.Pixmap
+import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.InputListener
 import com.badlogic.gdx.scenes.scene2d.ui.Image
@@ -45,7 +47,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
     private val estudiantesEngine = EstudiantesEngine()
     private val eventEngine       = EventEngine { evento -> showEventToast(evento) }
     private var cycleTimer        = 0f
-    private val cycleDuration     = 60f
+    private val cycleDuration     = 30f // Reducido de 60f a 30f para cobrar más rápido
 
     init {
         cycleEngine.addListener(economyEngine)
@@ -88,6 +90,31 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
     // ── Caché de texturas de edificios ────────────────────────────────
     private val buildingTextureCache = mutableMapOf<String, Texture?>()
+
+    private val worldFont: BitmapFont by lazy {
+        // 1. Reseteamos la fuente original del skin a escala 1.0 (esto arregla la UI)
+        val skinFont = Scene2DSkin.defaultSkin.getFont("default-font")
+        skinFont.data.setScale(1.0f)
+
+        // 2. Creamos una fuente nueva cargando los datos de forma independiente
+        // Cargamos una nueva instancia de BitmapFontData para que no comparta la escala con la original
+        val fontData = com.badlogic.gdx.graphics.g2d.BitmapFont.BitmapFontData(
+            skinFont.data.fontFile,
+            skinFont.data.flipped
+        )
+        BitmapFont(fontData, skinFont.regions, false).apply {
+            data.setScale(4.5f) // Un poco más grande para ser vistoso
+        }
+    }
+
+    private val labelBgTexture: Texture by lazy {
+        val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+        pixmap.setColor(Color(0f, 0f, 0f, 0.6f)) // Negro semi-transparente
+        pixmap.fill()
+        val tex = Texture(pixmap)
+        pixmap.dispose()
+        tex.apply { setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
+    }
 
     private fun getBuildingTexture(propiedad: Propiedad): Texture? {
         val prefix = propiedad.texturePrefix ?: return null
@@ -147,10 +174,23 @@ class GameScreen(game: Main) : BaseScreen(game) {
     )
     private val buildingsToRender = mutableListOf<BuildingRenderInfo>()
 
+    private data class NameRenderInfo(
+        val propiedad: Propiedad,
+        val worldX: Float,
+        val worldY: Float,
+        val layout: GlyphLayout,
+        val bgW: Float,
+        val bgH: Float
+    )
+    private val namesToRender = mutableListOf<NameRenderInfo>()
+
     // ── Mapa auxiliar punto → propiedad ───────────────────────────────
     private val puntosAPropiedad = mapOf(
         "escom"          to "escom_hitbox",
         "escom_hitbox"   to "escom_hitbox",
+        "ESCOM"          to "escom_hitbox",
+        "Computacion"    to "escom_hitbox",
+        "computacion"    to "escom_hitbox",
         "Direccion"      to "Direccion",
         "direccion"      to "Direccion",
         "Mac_and_cheese" to "Mac_and_cheese",
@@ -337,6 +377,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
         Gdx.input.inputProcessor = multiplexer
 
         prepararRenderizadoEdificios()
+        prepararNombresFlotantes()
         setupHUD()
     }
 
@@ -353,6 +394,34 @@ class GameScreen(game: Main) : BaseScreen(game) {
             val worldY = (obj.point.y - obj.point.x) * 0.5f
 
             buildingsToRender.add(BuildingRenderInfo(propiedad, worldX, worldY))
+        }
+    }
+
+    private fun prepararNombresFlotantes() {
+        namesToRender.clear()
+        val nombresLayer = map?.layers?.get("Puntos_Nombres") ?: return
+
+        nombresLayer.objects.filterIsInstance<PointMapObject>().forEach { obj ->
+            val rawName   = obj.name ?: ""
+            val propId    = puntosAPropiedad[rawName] ?: rawName
+            val propiedad = PropiedadRepository.getPropiedad(propId) ?: return@forEach
+
+            // Conversión de Tiled → Mundo Isométrico
+            val worldX = obj.point.x + obj.point.y
+            val worldY = (obj.point.y - obj.point.x) * 0.5f
+
+            // Pre-calcular layout y dimensiones de fondo para optimizar renderizado
+            val texto = "Edificio de ${propiedad.nombre}"
+            val layout = GlyphLayout(worldFont, texto)
+            val padX = 40f
+            val padY = 20f
+
+            namesToRender.add(NameRenderInfo(
+                propiedad, worldX, worldY,
+                layout,
+                layout.width + (padX * 2f),
+                layout.height + (padY * 2f)
+            ))
         }
     }
 
@@ -469,23 +538,60 @@ class GameScreen(game: Main) : BaseScreen(game) {
     private fun renderizarMundo(delta: Float) {
         val r = renderer ?: return
 
-        // 1. Capas base del mapa
+        // 1. Capas base del mapa (LibGDX ya hace culling básico por celdas)
         r.render(layerIndicesToRender)
 
-        // 2. Edificios y Efectos (Tutorial)
+        // 2. Edificios y Etiquetas con Optimizaciones
         r.batch.begin()
         try {
-            // Dibujar Edificios
+            val frustum = camera.frustum
+
+            // --- PASO A: Dibujar Edificios (Culling aplicado) ---
             for (info in buildingsToRender) {
-                if (!info.propiedad.comprada) continue
-                val texture = getBuildingTexture(info.propiedad) ?: continue
-                r.batch.draw(
-                    texture,
-                    info.worldX - (info.propiedad.renderW / 2f),
-                    info.worldY,
-                    info.propiedad.renderW,
-                    info.propiedad.renderH
-                )
+                if (info.propiedad.comprada) {
+                    val p = info.propiedad
+                    val drawX = info.worldX - (p.renderW / 2f)
+                    val drawY = info.worldY
+
+                    // Frustum Culling: Solo dibujar si está en pantalla
+                    if (!frustum.boundsInFrustum(drawX + p.renderW / 2f, drawY + p.renderH / 2f, 0f, p.renderW / 2f, p.renderH / 2f, 0f)) continue
+
+                    val texture = getBuildingTexture(p) ?: continue
+                    r.batch.draw(texture, drawX, drawY, p.renderW, p.renderH)
+                }
+            }
+
+            // --- PASO B: Dibujar Fondos de Etiquetas (Batching: Agrupar texturas) ---
+            r.batch.color = Color.WHITE
+            for (info in namesToRender) {
+                if (!info.propiedad.comprada) {
+                    // Culling para etiquetas
+                    if (!frustum.boundsInFrustum(info.worldX, info.worldY, 0f, info.bgW / 2f, info.bgH / 2f, 0f)) continue
+
+                    r.batch.draw(
+                        labelBgTexture,
+                        info.worldX - (info.bgW / 2f),
+                        info.worldY - (info.bgH / 2f),
+                        info.bgW,
+                        info.bgH
+                    )
+                }
+            }
+
+            // --- PASO C: Dibujar Textos (Batching: La fuente es otra textura) ---
+            worldFont.color = Color.GOLD
+            for (info in namesToRender) {
+                if (!info.propiedad.comprada) {
+                    // Re-usamos el culling
+                    if (!frustum.boundsInFrustum(info.worldX, info.worldY, 0f, info.bgW / 2f, info.bgH / 2f, 0f)) continue
+
+                    worldFont.draw(
+                        r.batch,
+                        "Edificio de ${info.propiedad.nombre}",
+                        info.worldX - (info.layout.width / 2f),
+                        info.worldY + (info.layout.height / 2f)
+                    )
+                }
             }
 
             // Dibujar Resaltado de Tutorial
@@ -572,6 +678,8 @@ class GameScreen(game: Main) : BaseScreen(game) {
         backgroundTexture.dispose()
         menuIconTexture.dispose()
         highlightTexture.dispose()
+        worldFont.dispose()
+        labelBgTexture.dispose()
         buildingTextureCache.values.forEach { it?.dispose() }
         buildingTextureCache.clear()
         map?.dispose()
