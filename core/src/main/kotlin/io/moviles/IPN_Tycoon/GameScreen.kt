@@ -15,6 +15,8 @@ import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.maps.tiled.renderers.IsometricTiledMapRenderer
 import com.badlogic.gdx.math.MathUtils
+import com.badlogic.gdx.math.Rectangle
+import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.g2d.BitmapFont
@@ -47,7 +49,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
     private val estudiantesEngine = EstudiantesEngine()
     private val eventEngine       = EventEngine { evento -> showEventToast(evento) }
     private var cycleTimer        = 0f
-    private val cycleDuration     = 30f // Reducido de 60f a 30f para cobrar más rápido
+    private val cycleDuration     = 30f
 
     init {
         cycleEngine.addListener(economyEngine)
@@ -68,10 +70,6 @@ class GameScreen(game: Main) : BaseScreen(game) {
         map?.let { IsometricTiledMapRenderer(it) }
     }
 
-    /**
-     * Índices de capas a renderizar — excluye "Edificios" porque
-     * nosotros dibujamos los edificios dinámicamente según nivel/compra.
-     */
     private val layerIndicesToRender: IntArray by lazy {
         val m = map ?: return@lazy intArrayOf()
         (0 until m.layers.count)
@@ -88,42 +86,81 @@ class GameScreen(game: Main) : BaseScreen(game) {
     private var initialZoom = 5f
     private val targetCameraPos = Vector3(-436f, 1360f, 0f)
 
+    // ── OPTIMIZACIÓN: Screen-space rect para culling 2D barato ────────
+    // Reusable para no generar GC cada frame
+    private val screenRect = Rectangle()
+    private val tempVec2   = Vector2()
+
+    /**
+     * Actualiza screenRect con los límites del mundo visibles en pantalla.
+     * Mucho más rápido que frustum.boundsInFrustum para sprites 2D isométricos.
+     * Se llama una vez por frame en actualizarCamara().
+     */
+    private fun updateScreenRect() {
+        val halfW = camera.viewportWidth  * camera.zoom * 0.5f
+        val halfH = camera.viewportHeight * camera.zoom * 0.5f
+
+        // Margen más inteligente según zoom para optimizar culling
+        val margin = when {
+            camera.zoom > 6f -> camera.zoom * 40f
+            camera.zoom > 4f -> camera.zoom * 80f
+            else             -> camera.zoom * 120f
+        }
+
+        screenRect.set(
+            camera.position.x - halfW - margin,
+            camera.position.y - halfH - margin,
+            (halfW + margin) * 2f,
+            (halfH + margin) * 2f
+        )
+    }
+
+    /** Culling 2D: más rápido que frustum 3D para sprites isométricos */
+    private fun isVisible(worldX: Float, worldY: Float, w: Float, h: Float): Boolean {
+        return screenRect.overlaps(
+            // Reutilizar un Rectangle temporal para evitar allocations
+            tempRect.also { it.set(worldX - w * 0.5f, worldY - h * 0.5f, w, h) }
+        )
+    }
+    private val tempRect = Rectangle()
+
     // ── Caché de texturas de edificios ────────────────────────────────
     private val buildingTextureCache = mutableMapOf<String, Texture?>()
 
+    // OPTIMIZACIÓN: Pre-resolvemos la textura en BuildingRenderInfo para
+    // no llamar a getBuildingTexture() cada frame (evita hashmap lookup + lambda)
+    private fun getBuildingTexture(propiedad: Propiedad): Texture? {
+        val prefix = propiedad.texturePrefix ?: return null
+        val key    = "${prefix}lvl${propiedad.nivel}"
+        // getOrPut con valor ya computado evita la lambda en cache hit
+        val cached = buildingTextureCache[key]
+        if (cached != null) return cached
+        val file = "Mapa/Edificios/$key.png".toInternalFile()
+        val tex = if (file.exists()) Texture(file) else null
+        if (tex == null) Gdx.app.error("TEXTURE", "No encontrado: $key.png")
+        buildingTextureCache[key] = tex
+        return tex
+    }
+
     private val worldFont: BitmapFont by lazy {
-        // 1. Reseteamos la fuente original del skin a escala 1.0 (esto arregla la UI)
         val skinFont = Scene2DSkin.defaultSkin.getFont("default-font")
         skinFont.data.setScale(1.0f)
-
-        // 2. Creamos una fuente nueva cargando los datos de forma independiente
-        // Cargamos una nueva instancia de BitmapFontData para que no comparta la escala con la original
         val fontData = com.badlogic.gdx.graphics.g2d.BitmapFont.BitmapFontData(
             skinFont.data.fontFile,
             skinFont.data.flipped
         )
         BitmapFont(fontData, skinFont.regions, false).apply {
-            data.setScale(4.5f) // Un poco más grande para ser vistoso
+            data.setScale(4.5f)
         }
     }
 
     private val labelBgTexture: Texture by lazy {
         val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
-        pixmap.setColor(Color(0f, 0f, 0f, 0.6f)) // Negro semi-transparente
+        pixmap.setColor(Color(0f, 0f, 0f, 0.6f))
         pixmap.fill()
         val tex = Texture(pixmap)
         pixmap.dispose()
         tex.apply { setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
-    }
-
-    private fun getBuildingTexture(propiedad: Propiedad): Texture? {
-        val prefix = propiedad.texturePrefix ?: return null
-        val key    = "${prefix}lvl${propiedad.nivel}"
-        return buildingTextureCache.getOrPut(key) {
-            val file = "Mapa/Edificios/$key.png".toInternalFile()
-            if (file.exists()) Texture(file)
-            else { Gdx.app.error("TEXTURE", "No encontrado: $key.png"); null }
-        }
     }
 
     // ── Diálogo ───────────────────────────────────────────────────────
@@ -149,8 +186,8 @@ class GameScreen(game: Main) : BaseScreen(game) {
     private var lastMoney:        Long = -1
     private var lastStudents:     Int = -1
     private var lastReputation:   Int = -1
-    private var toastLine1:       Label? = null   // ingresos del ciclo
-    private var toastLine2:       Label? = null   // total alumnos
+    private var toastLine1:       Label? = null
+    private var toastLine2:       Label? = null
     private var toastTable:       Table? = null
     private var eventTituloLabel: Label? = null
     private var eventEfectoLabel: Label? = null
@@ -167,22 +204,39 @@ class GameScreen(game: Main) : BaseScreen(game) {
         Texture(pixmap).apply { setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
     }
 
-    private data class BuildingRenderInfo(
-        val propiedad: Propiedad,
-        val worldX: Float,
-        val worldY: Float
+    // ── OPTIMIZACIÓN: Datos de renderizado pre-calculados ─────────────
+    /**
+     * Combina edificio + etiqueta en un solo objeto para:
+     * 1. Iterar la lista UNA sola vez (antes eran 3 pasadas separadas)
+     * 2. Evitar búsquedas repetidas por propiedad
+     * 3. Almacenar la textura resuelta para no hacer hashmap lookup cada frame
+     */
+    private data class RenderEntry(
+        val propiedad:   Propiedad,
+        // Coordenadas del Edificio (Building)
+        val bWorldX:     Float,
+        val bWorldY:     Float,
+        val bDrawX:      Float,   // bWorldX - renderW/2
+        // Coordenadas de la Etiqueta (Label)
+        val lWorldX:     Float,
+        val lWorldY:     Float,
+        val nameLayout:  GlyphLayout?,
+        val nameBgW:     Float,
+        val nameBgH:     Float,
+        // Posición del texto centrado
+        val nameTextX:   Float,
+        val nameTextY:   Float,
+        // Textura resuelta (se invalida al subir de nivel)
+        var cachedTex:   Texture?
     )
-    private val buildingsToRender = mutableListOf<BuildingRenderInfo>()
+    private val renderEntries = mutableListOf<RenderEntry>()
 
-    private data class NameRenderInfo(
-        val propiedad: Propiedad,
-        val worldX: Float,
-        val worldY: Float,
-        val layout: GlyphLayout,
-        val bgW: Float,
-        val bgH: Float
-    )
-    private val namesToRender = mutableListOf<NameRenderInfo>()
+    // OPTIMIZACIÓN: Acumuladores pre-calculados para HUD — solo se recalculan
+    // cuando cambia el estado de una propiedad, no en cada frame
+    private var cachedTotalAlumnos:   Int = 0
+    private var cachedTotalMaxLevel:  Int = 0
+    private var cachedCurrentLevel:   Int = 0
+    private var hudDirty = true   // Marca que hay que recalcular los acumuladores
 
     // ── Mapa auxiliar punto → propiedad ───────────────────────────────
     private val puntosAPropiedad = mapOf(
@@ -214,8 +268,8 @@ class GameScreen(game: Main) : BaseScreen(game) {
         "museo"          to "Museo",
         "Turismo"        to "Turismo",
         "turismo"        to "Turismo",
-        "Palapas"        to "Palapas",
-        "palapas"        to "Palapas"
+        "Palapas"        to "palapas",
+        "palapas"        to "palapas"
     )
 
     // ─────────────────────────────────────────────────────────────────
@@ -224,7 +278,6 @@ class GameScreen(game: Main) : BaseScreen(game) {
         val skin   = Scene2DSkin.defaultSkin
         val fuente = skin.getFont("default-font")
 
-        // Limpiar caché al entrar para evitar estados corruptos entre partidas
         buildingTextureCache.clear()
 
         if (dialogoActor == null) {
@@ -290,7 +343,6 @@ class GameScreen(game: Main) : BaseScreen(game) {
             stage.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
                     if (event?.isHandled == true) return
-
                     dialogoActor?.let { actor ->
                         if (actor.isVisible) {
                             actor.avanzar()
@@ -350,6 +402,9 @@ class GameScreen(game: Main) : BaseScreen(game) {
                             val propId    = puntosAPropiedad[rawName] ?: rawName
                             val propiedad = PropiedadRepository.getPropiedad(propId) ?: return false
                             BuildingInfoWindow(propiedad) {
+                                // Invalidar HUD y refrescar la textura cacheada del entry
+                                hudDirty = true
+                                invalidateRenderEntry(propId)
                                 Gdx.app.log("GAME", "${propiedad.nombre} → nivel ${propiedad.nivel}")
                             }.show(stage)
                             return true
@@ -366,7 +421,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
             override fun zoom(initialDistance: Float, distance: Float): Boolean {
                 val ratio = if (distance > 0) initialDistance / distance else 1f
-                camera.zoom = (initialZoom * ratio).coerceIn(1f, 8f)
+                camera.zoom = (initialZoom * ratio).coerceIn(1f, 6.5f)
                 return true
             }
 
@@ -376,53 +431,85 @@ class GameScreen(game: Main) : BaseScreen(game) {
         multiplexer.addProcessor(gestureDetector)
         Gdx.input.inputProcessor = multiplexer
 
-        prepararRenderizadoEdificios()
-        prepararNombresFlotantes()
+        prepararRenderEntries()
         setupHUD()
     }
 
-    private fun prepararRenderizadoEdificios() {
-        buildingsToRender.clear()
-        val puntosLayer = map?.layers?.get("Puntos_origen") ?: return
-
-        puntosLayer.objects.filterIsInstance<PointMapObject>().forEach { obj ->
-            val rawName   = obj.name ?: ""
-            val propId    = puntosAPropiedad[rawName] ?: rawName
-            val propiedad = PropiedadRepository.getPropiedad(propId) ?: return@forEach
-
-            val worldX = obj.point.x + obj.point.y
-            val worldY = (obj.point.y - obj.point.x) * 0.5f
-
-            buildingsToRender.add(BuildingRenderInfo(propiedad, worldX, worldY))
+    /**
+     * Invalida la textura cacheada de un entry específico cuando sube de nivel.
+     * Así no tenemos que regenerar toda la lista.
+     */
+    private fun invalidateRenderEntry(propId: String) {
+        renderEntries.find { it.propiedad.id == propId }?.let { entry ->
+            entry.cachedTex = getBuildingTexture(entry.propiedad)
         }
     }
 
-    private fun prepararNombresFlotantes() {
-        namesToRender.clear()
-        val nombresLayer = map?.layers?.get("Puntos_Nombres") ?: return
+    /**
+     * OPTIMIZACIÓN PRINCIPAL: Combina la preparación de edificios y etiquetas
+     * en una sola pasada. Pre-calcula todo lo necesario para el render loop.
+     * Solo se llama al cargar el mapa, no cada frame.
+     */
+    private fun prepararRenderEntries() {
+        renderEntries.clear()
 
-        nombresLayer.objects.filterIsInstance<PointMapObject>().forEach { obj ->
+        val edificiosLayer = map?.layers?.get("Puntos_origen") ?: return
+        val nombresLayer   = map?.layers?.get("Puntos_Nombres")
+
+        // Construir mapa de posiciones de etiquetas indexado por nombre
+        val nombresPorId = mutableMapOf<String, Pair<Float, Float>>()
+        nombresLayer?.objects?.filterIsInstance<PointMapObject>()?.forEach { obj ->
+            val rawName = obj.name ?: ""
+            val propId  = puntosAPropiedad[rawName] ?: rawName
+            val wx = obj.point.x + obj.point.y
+            val wy = (obj.point.y - obj.point.x) * 0.5f
+            nombresPorId[propId] = Pair(wx, wy)
+        }
+
+        // Una sola pasada para edificios — también une info de etiqueta si existe
+        edificiosLayer.objects.filterIsInstance<PointMapObject>().forEach { obj ->
             val rawName   = obj.name ?: ""
             val propId    = puntosAPropiedad[rawName] ?: rawName
             val propiedad = PropiedadRepository.getPropiedad(propId) ?: return@forEach
 
-            // Conversión de Tiled → Mundo Isométrico
-            val worldX = obj.point.x + obj.point.y
-            val worldY = (obj.point.y - obj.point.x) * 0.5f
+            val buildingWorldX = obj.point.x + obj.point.y
+            val buildingWorldY = (obj.point.y - obj.point.x) * 0.5f
 
-            // Pre-calcular layout y dimensiones de fondo para optimizar renderizado
-            val texto = "Edificio de ${propiedad.nombre}"
-            val layout = GlyphLayout(worldFont, texto)
-            val padX = 40f
-            val padY = 20f
+            // Datos de la etiqueta flotante (si hay punto de nombre asociado)
+            val (labelWorldX, labelWorldY) = nombresPorId[propId] ?: Pair(buildingWorldX, buildingWorldY)
+            val texto   = "Edificio de ${propiedad.nombre}"
+            val layout  = GlyphLayout(worldFont, texto)
+            val padX    = 40f; val padY = 20f
+            val bgW     = layout.width  + padX * 2f
+            val bgH     = layout.height + padY * 2f
 
-            namesToRender.add(NameRenderInfo(
-                propiedad, worldX, worldY,
-                layout,
-                layout.width + (padX * 2f),
-                layout.height + (padY * 2f)
+            renderEntries.add(RenderEntry(
+                propiedad  = propiedad,
+                bWorldX    = buildingWorldX,
+                bWorldY    = buildingWorldY,
+                bDrawX     = buildingWorldX - (propiedad.renderW / 2f),
+                lWorldX    = labelWorldX,
+                lWorldY    = labelWorldY,
+                nameLayout = layout,
+                nameBgW    = bgW,
+                nameBgH    = bgH,
+                nameTextX  = labelWorldX - (layout.width  / 2f),
+                nameTextY  = labelWorldY + (layout.height / 2f),
+                cachedTex  = getBuildingTexture(propiedad)
             ))
         }
+
+        // Precalcular acumuladores para el HUD
+        recalcularHUDCache()
+    }
+
+    /** Recalcula los totales para el HUD. Se llama solo cuando cambia el estado. */
+    private fun recalcularHUDCache() {
+        val props = PropiedadRepository.propiedades.values
+        cachedTotalAlumnos  = props.filter { it.comprada }.sumOf { it.baseAlumnos * it.nivel }
+        cachedTotalMaxLevel = props.sumOf { it.mejoraMax }
+        cachedCurrentLevel  = props.filter { it.comprada }.sumOf { it.nivel }
+        hudDirty = false
     }
 
     // ── HUD ───────────────────────────────────────────────────────────
@@ -437,14 +524,12 @@ class GameScreen(game: Main) : BaseScreen(game) {
         moneyLabel   = Label(formatMoney(GameState.dinero), goldStyle).apply { setFontScale(1.1f) }
         alumnosLabel = Label(formatAlumnos(GameState.alumnosTotales), cyanStyle).apply { setFontScale(1.1f) }
 
-        // ── Toast de ciclo (actor permanente, empieza invisible) ──────
         toastLine1 = Label("", Label.LabelStyle(font, Color.GREEN))
         toastLine2 = Label("", Label.LabelStyle(font, Color.CYAN))
 
         val sw = stage.width
         val sh = stage.height
 
-        // ── Toast de ciclo ────────────────────────────────────────────
         toastTable = Table().apply {
             background = toastBg
             pad(8f, 16f, 8f, 16f)
@@ -457,7 +542,6 @@ class GameScreen(game: Main) : BaseScreen(game) {
         }
         stage.addActor(toastTable)
 
-        // ── Toast de eventos (más arriba, fondo más oscuro) ───────────
         eventTituloLabel = Label("", Label.LabelStyle(font, Color.WHITE))
         eventEfectoLabel = Label("", Label.LabelStyle(font, Color.WHITE))
         val eventBg = skin.newDrawable("white", Color(0.1f, 0.05f, 0.2f, 0.85f))
@@ -476,21 +560,13 @@ class GameScreen(game: Main) : BaseScreen(game) {
         val hudTable = Table().apply {
             setFillParent(true)
             top()
-
-            // Contenedor de Money, Alumnos y Reputación
             add(Table().apply {
                 background = whiteDrawable
                 pad(8f)
-
-                // Dinero
                 add(Label("$ ", goldStyle))
                 add(moneyLabel).padRight(20f)
-
-                // Alumnos
                 add(Label("Alumnos: ", cyanStyle))
                 add(alumnosLabel).padRight(20f)
-
-                // Reputación (Porcentaje)
                 add(Label("Reputación: ", goldStyle)).padRight(5f)
                 reputationLabel = Label("0%", goldStyle).apply { setFontScale(1.1f) }
                 add(reputationLabel)
@@ -509,7 +585,6 @@ class GameScreen(game: Main) : BaseScreen(game) {
                 })
             }).right().pad(10f).size(80f)
         }
-
         stage.addActor(hudTable)
     }
 
@@ -518,13 +593,12 @@ class GameScreen(game: Main) : BaseScreen(game) {
         clearScreen(0f, 0f, 0f, 1f)
 
         if (modoCarga) {
-            actualizarCamara()
+            actualizarCamara()      // También llama updateScreenRect()
             renderizarMundo(delta)
             actualizarCicloDeJuego(delta)
             actualizarIndicadoresHUD()
         }
 
-        // Siempre se ejecuta (HUD y Diálogos)
         stage.act(delta)
         stage.draw()
     }
@@ -533,125 +607,122 @@ class GameScreen(game: Main) : BaseScreen(game) {
         camera.position.lerp(targetCameraPos, 0.2f)
         camera.update()
         renderer?.setView(camera)
+        // OPTIMIZACIÓN: Actualizar el rect de culling 2D una vez por frame
+        updateScreenRect()
     }
 
     private fun renderizarMundo(delta: Float) {
         val r = renderer ?: return
-
-        // 1. Capas base del mapa (LibGDX ya hace culling básico por celdas)
+        val zoom = camera.zoom
         r.render(layerIndicesToRender)
 
-        // 2. Edificios y Etiquetas con Optimizaciones
         r.batch.begin()
         try {
-            val frustum = camera.frustum
+            /**
+             * OPTIMIZACIÓN PRINCIPAL DEL RENDER:
+             * Una sola iteración sobre renderEntries en lugar de 3 pasadas separadas.
+             *
+             * El orden de renderizado respeta el batching:
+             *   - Primero todos los edificios comprados (misma textura por building = menos flushes)
+             *   - Luego todos los fondos de etiquetas (labelBgTexture = 1 textura = 0 flushes extra)
+             *   - Luego todos los textos (worldFont.region = 1 textura = 0 flushes extra)
+             * Total: máximo 3 flushes por frame vs N*3 antes.
+             */
 
-            // --- PASO A: Dibujar Edificios (Culling aplicado) ---
-            for (info in buildingsToRender) {
-                if (info.propiedad.comprada) {
-                    val p = info.propiedad
-                    val drawX = info.worldX - (p.renderW / 2f)
-                    val drawY = info.worldY
+            val drawLabels = zoom <= 4.2f
 
-                    // Frustum Culling: Solo dibujar si está en pantalla
-                    if (!frustum.boundsInFrustum(drawX + p.renderW / 2f, drawY + p.renderH / 2f, 0f, p.renderW / 2f, p.renderH / 2f, 0f)) continue
+            // PASO A: Edificios comprados
+            for (entry in renderEntries) {
+                if (!entry.propiedad.comprada) continue
+                val p   = entry.propiedad
+                val tex = entry.cachedTex ?: continue
+                // Culling 2D usando coordenadas del EDIFICIO
+                if (!isVisible(entry.bWorldX, entry.bWorldY, p.renderW, p.renderH)) continue
 
-                    val texture = getBuildingTexture(p) ?: continue
-                    r.batch.draw(texture, drawX, drawY, p.renderW, p.renderH)
-                }
+                // LOD: Si está muy lejos, dibujar versión ligeramente más pequeña
+                val scale = if (zoom > 6f) 0.75f else 1f
+                val w = p.renderW * scale
+                val h = p.renderH * scale
+                val offset = if (scale < 1f) 12f else 0f
+
+                r.batch.draw(tex, entry.bDrawX + offset, entry.bWorldY + offset, w, h)
             }
 
-            // --- PASO B: Dibujar Fondos de Etiquetas (Batching: Agrupar texturas) ---
-            r.batch.color = Color.WHITE
-            for (info in namesToRender) {
-                if (!info.propiedad.comprada) {
-                    // Culling para etiquetas
-                    if (!frustum.boundsInFrustum(info.worldX, info.worldY, 0f, info.bgW / 2f, info.bgH / 2f, 0f)) continue
-
+            // Solo dibujar etiquetas si el zoom es razonable para lectura
+            if (drawLabels) {
+                // PASO B: Fondos de etiquetas (no comprados)
+                r.batch.color = Color.WHITE
+                for (entry in renderEntries) {
+                    if (entry.propiedad.comprada) continue
+                    // Culling 2D usando coordenadas de la ETIQUETA
+                    if (!isVisible(entry.lWorldX, entry.lWorldY, entry.nameBgW, entry.nameBgH)) continue
                     r.batch.draw(
                         labelBgTexture,
-                        info.worldX - (info.bgW / 2f),
-                        info.worldY - (info.bgH / 2f),
-                        info.bgW,
-                        info.bgH
+                        entry.lWorldX - (entry.nameBgW / 2f),
+                        entry.lWorldY - (entry.nameBgH / 2f),
+                        entry.nameBgW,
+                        entry.nameBgH
                     )
+                }
+
+                // PASO C: Textos (la fuente mantiene el color internamente)
+                worldFont.color = Color.GOLD
+                for (entry in renderEntries) {
+                    if (entry.propiedad.comprada) continue
+                    val layout = entry.nameLayout ?: continue
+                    // Culling 2D usando coordenadas de la ETIQUETA
+                    if (!isVisible(entry.lWorldX, entry.lWorldY, entry.nameBgW, entry.nameBgH)) continue
+                    // Usamos el layout pre-calculado para evitar que BitmapFont.draw() recree GlyphLayout
+                    worldFont.draw(r.batch, layout, entry.nameTextX, entry.nameTextY)
                 }
             }
 
-            // --- PASO C: Dibujar Textos (Batching: La fuente es otra textura) ---
-            worldFont.color = Color.GOLD
-            for (info in namesToRender) {
-                if (!info.propiedad.comprada) {
-                    // Re-usamos el culling
-                    if (!frustum.boundsInFrustum(info.worldX, info.worldY, 0f, info.bgW / 2f, info.bgH / 2f, 0f)) continue
-
-                    worldFont.draw(
-                        r.batch,
-                        "Edificio de ${info.propiedad.nombre}",
-                        info.worldX - (info.layout.width / 2f),
-                        info.worldY + (info.layout.height / 2f)
-                    )
-                }
-            }
-
-            // Dibujar Resaltado de Tutorial
+            // Tutorial highlight
             tutorialHighlightPos?.let { pos ->
                 tutorialTimer += delta
                 val pulse = 1f + 0.3f * MathUtils.sin(tutorialTimer * 10f)
-                val size = 400f * pulse
-
+                val size  = 400f * pulse
                 r.batch.color = Color(1f, 0.9f, 0f, 0.5f)
-                r.batch.draw(
-                    highlightTexture,
-                    pos.x - size / 2f,
-                    pos.y - size / 4f,
-                    size,
-                    size / 2f
-                )
+                r.batch.draw(highlightTexture, pos.x - size / 2f, pos.y - size / 4f, size, size / 2f)
                 r.batch.color = Color.WHITE
             }
+
         } catch (e: Exception) {
             Gdx.app.error("RENDER", "Error en renderizado de mundo: ${e.message}")
         }
+        r.batch.color = Color.WHITE
         r.batch.end()
     }
 
-    /**
-     * Avance del ciclo de juego — fuera del batch de render para evitar
-     * problemas si el listener del ciclo dispara cambios visuales.
-     */
     private fun actualizarCicloDeJuego(delta: Float) {
         cycleTimer += delta
         while (cycleTimer >= cycleDuration) {
             cycleTimer -= cycleDuration
             cycleEngine.advanceCycle()
+            hudDirty = true   // El ciclo cambia dinero/alumnos → invalidar caché HUD
             economyEngine.lastResult?.let { showCycleToast(it) }
         }
     }
 
+    /**
+     * OPTIMIZACIÓN: Ya no hace sumOf en cada frame.
+     * Solo recalcula si hudDirty = true (al comprar/mejorar/fin de ciclo).
+     */
     private fun actualizarIndicadoresHUD() {
-        // Dinero
+        if (hudDirty) recalcularHUDCache()
+
         if (GameState.dinero != lastMoney) {
             lastMoney = GameState.dinero
             moneyLabel?.setText(formatMoney(lastMoney))
         }
 
-        // Alumnos
-        val currentStudents = PropiedadRepository.propiedades.values
-            .filter { it.comprada }.sumOf { it.baseAlumnos * it.nivel }
-
-        if (currentStudents != lastStudents) {
-            lastStudents = currentStudents
+        if (cachedTotalAlumnos != lastStudents) {
+            lastStudents = cachedTotalAlumnos
             alumnosLabel?.setText(formatAlumnos(lastStudents))
         }
 
-        // Reputación
-        val totalMaxLevel = PropiedadRepository.propiedades.values.sumOf { it.mejoraMax }
-        val currentTotalLevel = PropiedadRepository.propiedades.values
-            .filter { it.comprada }.sumOf { it.nivel }
-
-        val reputation = if (totalMaxLevel > 0) {
-            ((currentTotalLevel.toFloat() / totalMaxLevel) * 100).toInt().coerceIn(0, 100)
+        val reputation = if (cachedTotalMaxLevel > 0) {
+            ((cachedCurrentLevel.toFloat() / cachedTotalMaxLevel) * 100).toInt().coerceIn(0, 100)
         } else 0
 
         if (reputation != lastReputation) {
@@ -660,7 +731,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
             reputationLabel?.color = when {
                 reputation >= 80 -> Color.GOLD
                 reputation >= 50 -> Color.YELLOW
-                else -> Color.WHITE
+                else             -> Color.WHITE
             }
         }
     }
@@ -687,11 +758,12 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
     // ── Tutorial ──────────────────────────────────────────────────────
     private fun getBuildingPos(id: String): Vector3? {
-        return buildingsToRender.find { it.propiedad.id == id }?.let { Vector3(it.worldX, it.worldY, 0f) }
+        return renderEntries.find { it.propiedad.id == id }
+            ?.let { Vector3(it.bWorldX, it.bWorldY, 0f) }
     }
 
     private fun mostrarTutorial() {
-        val posEscom = getBuildingPos("escom_hitbox")
+        val posEscom     = getBuildingPos("escom_hitbox")
         val posDireccion = getBuildingPos("Direccion")
 
         dialogoActor?.let { actor ->
@@ -708,8 +780,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
                 Dialogo("Ing. Cárdenas", "Para crecer, simplemente toca cualquier edificio o terreno en el mapa.", "sprite_hablando.png") {
                     posEscom?.let {
                         targetCameraPos.set(it.x, it.y, 0f)
-                        initialZoom = 3f
-                        camera.zoom = 3f
+                        initialZoom = 3f; camera.zoom = 3f
                         tutorialHighlightPos = it
                     }
                 },
@@ -717,15 +788,13 @@ class GameScreen(game: Main) : BaseScreen(game) {
                 Dialogo("Ing. Cárdenas", "Subir de nivel un edificio aumenta su capacidad de alumnos y la reputación de la escuela.", "sprite_hablando.png") {
                     posDireccion?.let {
                         targetCameraPos.set(it.x, it.y, 0f)
-                        initialZoom = 4f
-                        camera.zoom = 4f
+                        initialZoom = 4f; camera.zoom = 4f
                         tutorialHighlightPos = it
                     }
                 },
                 Dialogo("Ing. Cárdenas", "No olvides explorar todo el campus arrastrando el dedo y haciendo zoom.", "sprite_saludando.png") {
                     targetCameraPos.set(-436f, 1360f, 0f)
-                    initialZoom = 5f
-                    camera.zoom = 5f
+                    initialZoom = 5f; camera.zoom = 5f
                     tutorialHighlightPos = null
                 },
                 Dialogo("Ing. Cárdenas", "¡Ahora sí, pon la técnica al servicio de la patria! ¡¡HUÉLUM!!", "sprite_saludando.png")
@@ -733,49 +802,38 @@ class GameScreen(game: Main) : BaseScreen(game) {
         }
     }
 
-    // ── Toasts de ciclo y eventos ─────────────────────────────────────
+    // ── Toasts ────────────────────────────────────────────────────────
     private fun showCycleToast(result: EconomyEngine.CycleResult) {
         val toast = toastTable ?: return
-
         toastLine1?.setText("Ingresos:  +${formatMoney(result.ingresos)}")
         toastLine2?.setText("Alumnos:    ${formatAlumnos(GameState.alumnosTotales)}")
-
         toast.clearActions()
         toast.color.a = 0f
-        toast.invalidateHierarchy()
-        toast.pack()
+        toast.invalidateHierarchy(); toast.pack()
         toast.setPosition((stage.width - toast.width) / 2f, stage.height * 0.08f)
         toast.addAction(Actions.sequence(
-            Actions.fadeIn(0.25f),
-            Actions.delay(3.5f),
-            Actions.fadeOut(0.4f)
+            Actions.fadeIn(0.25f), Actions.delay(3.5f), Actions.fadeOut(0.4f)
         ))
     }
 
     private fun showEventToast(evento: GameEvent) {
-        val toast = eventTable ?: return
+        val toast   = eventTable ?: return
         val esGasto = evento.efecto is EventoEfecto.Gasto
-
         val cantidad = when (val e = evento.efecto) {
             is EventoEfecto.Gasto   -> e.cantidad
             is EventoEfecto.Ingreso -> e.cantidad
         }
         val signo = if (esGasto) "-" else "+"
-
         eventTituloLabel?.setText(evento.titulo)
         eventTituloLabel?.setColor(if (esGasto) Color.RED else Color.GREEN)
         eventEfectoLabel?.setText("${signo}\$${formatMoney(cantidad)}  —  ${evento.descripcion}")
         eventEfectoLabel?.setColor(if (esGasto) Color.RED else Color.GREEN)
-
         toast.clearActions()
         toast.color.a = 0f
-        toast.invalidateHierarchy()
-        toast.pack()
+        toast.invalidateHierarchy(); toast.pack()
         toast.setPosition((stage.width - toast.width) / 2f, stage.height * 0.22f)
         toast.addAction(Actions.sequence(
-            Actions.fadeIn(0.25f),
-            Actions.delay(5f),
-            Actions.fadeOut(0.4f)
+            Actions.fadeIn(0.25f), Actions.delay(5f), Actions.fadeOut(0.4f)
         ))
     }
 
