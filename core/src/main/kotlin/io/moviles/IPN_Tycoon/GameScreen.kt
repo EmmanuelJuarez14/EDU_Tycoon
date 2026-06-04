@@ -51,6 +51,19 @@ class GameScreen(game: Main) : BaseScreen(game) {
     private var cycleTimer        = 0f
     private val cycleDuration     = 30f
 
+    // ── Ajustes de Optimización ──────────────────────────────────────
+    private val maxZoom                = 7.0f
+    private val maxZoomForLabels       = 4.0f
+    private val maxZoomForFullBuildings = 5.8f
+
+    // Offset vertical para edificios generales al encogerse (LOD)
+    private val smallBuildingYOffset = mapOf(
+        "Edificio1" to 35f,
+        "Edificio2" to 35f,
+        "edificio1" to 35f,
+        "edificio2" to 35f
+    )
+
     init {
         cycleEngine.addListener(economyEngine)
         cycleEngine.addListener(estudiantesEngine)
@@ -100,12 +113,11 @@ class GameScreen(game: Main) : BaseScreen(game) {
         val halfW = camera.viewportWidth  * camera.zoom * 0.5f
         val halfH = camera.viewportHeight * camera.zoom * 0.5f
 
-        // Margen más inteligente según zoom para optimizar culling
         val margin = when {
-            camera.zoom > 6f -> camera.zoom * 40f
-            camera.zoom > 4f -> camera.zoom * 80f
-            else             -> camera.zoom * 120f
-        }
+            camera.zoom > 6f -> 60f
+            camera.zoom > 4f -> 100f
+            else             -> 140f
+        } * camera.zoom
 
         screenRect.set(
             camera.position.x - halfW - margin,
@@ -421,7 +433,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
             override fun zoom(initialDistance: Float, distance: Float): Boolean {
                 val ratio = if (distance > 0) initialDistance / distance else 1f
-                camera.zoom = (initialZoom * ratio).coerceIn(1f, 6.5f)
+                camera.zoom = (initialZoom * ratio).coerceIn(1f, maxZoom)
                 return true
             }
 
@@ -618,44 +630,49 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
         r.batch.begin()
         try {
-            /**
-             * OPTIMIZACIÓN PRINCIPAL DEL RENDER:
-             * Una sola iteración sobre renderEntries en lugar de 3 pasadas separadas.
-             *
-             * El orden de renderizado respeta el batching:
-             *   - Primero todos los edificios comprados (misma textura por building = menos flushes)
-             *   - Luego todos los fondos de etiquetas (labelBgTexture = 1 textura = 0 flushes extra)
-             *   - Luego todos los textos (worldFont.region = 1 textura = 0 flushes extra)
-             * Total: máximo 3 flushes por frame vs N*3 antes.
-             */
+            r.batch.color = Color.WHITE
 
-            val drawLabels = zoom <= 4.2f
+            val drawLabels    = zoom <= maxZoomForLabels
+            val useSmallScale = zoom > maxZoomForFullBuildings
 
-            // PASO A: Edificios comprados
+            // ====================== EDIFICIOS COMPRADOS ======================
             for (entry in renderEntries) {
                 if (!entry.propiedad.comprada) continue
+
                 val p   = entry.propiedad
                 val tex = entry.cachedTex ?: continue
+
                 // Culling 2D usando coordenadas del EDIFICIO
                 if (!isVisible(entry.bWorldX, entry.bWorldY, p.renderW, p.renderH)) continue
 
-                // LOD: Si está muy lejos, dibujar versión ligeramente más pequeña
-                val scale = if (zoom > 6f) 0.75f else 1f
+                var drawY = entry.bWorldY
+                var scale = 1f
+
+                // LOD + Fix visual para Edificios generales
+                if (useSmallScale) {
+                    scale = 0.72f
+                    // Subir un poco los edificios 1 y 2 cuando se encogen para que no se hundan
+                    smallBuildingYOffset[p.id]?.let { offset ->
+                        drawY += offset * (zoom - maxZoomForFullBuildings) / 2f
+                    }
+                }
+
                 val w = p.renderW * scale
                 val h = p.renderH * scale
-                val offset = if (scale < 1f) 12f else 0f
+                // Centrar horizontalmente al escalar (usando el centro original bWorldX)
+                val drawX = entry.bDrawX + (p.renderW - w) * 0.5f
 
-                r.batch.draw(tex, entry.bDrawX + offset, entry.bWorldY + offset, w, h)
+                r.batch.draw(tex, drawX, drawY, w, h)
             }
 
-            // Solo dibujar etiquetas si el zoom es razonable para lectura
+            // ====================== ETIQUETAS (solo si cerca) ======================
             if (drawLabels) {
                 // PASO B: Fondos de etiquetas (no comprados)
                 r.batch.color = Color.WHITE
                 for (entry in renderEntries) {
                     if (entry.propiedad.comprada) continue
                     // Culling 2D usando coordenadas de la ETIQUETA
-                    if (!isVisible(entry.lWorldX, entry.lWorldY, entry.nameBgW, entry.nameBgH)) continue
+                    if (!isVisible(entry.lWorldX, entry.lWorldY, entry.nameBgW * 0.9f, entry.nameBgH * 0.9f)) continue
                     r.batch.draw(
                         labelBgTexture,
                         entry.lWorldX - (entry.nameBgW / 2f),
@@ -672,7 +689,6 @@ class GameScreen(game: Main) : BaseScreen(game) {
                     val layout = entry.nameLayout ?: continue
                     // Culling 2D usando coordenadas de la ETIQUETA
                     if (!isVisible(entry.lWorldX, entry.lWorldY, entry.nameBgW, entry.nameBgH)) continue
-                    // Usamos el layout pre-calculado para evitar que BitmapFont.draw() recree GlyphLayout
                     worldFont.draw(r.batch, layout, entry.nameTextX, entry.nameTextY)
                 }
             }
@@ -681,8 +697,8 @@ class GameScreen(game: Main) : BaseScreen(game) {
             tutorialHighlightPos?.let { pos ->
                 tutorialTimer += delta
                 val pulse = 1f + 0.3f * MathUtils.sin(tutorialTimer * 10f)
-                val size  = 400f * pulse
-                r.batch.color = Color(1f, 0.9f, 0f, 0.5f)
+                val size  = 380f * pulse
+                r.batch.color = Color(1f, 0.9f, 0f, 0.45f)
                 r.batch.draw(highlightTexture, pos.x - size / 2f, pos.y - size / 4f, size, size / 2f)
                 r.batch.color = Color.WHITE
             }
