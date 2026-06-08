@@ -177,6 +177,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
     // ── Diálogo ───────────────────────────────────────────────────────
     private var dialogoActor: DialogoActor? = null
+    private var currentInfoWindow: BuildingInfoWindow? = null
     private val backgroundTexture: Texture by lazy {
         Texture("background.png".toInternalFile()).apply {
             setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
@@ -406,6 +407,11 @@ class GameScreen(game: Main) : BaseScreen(game) {
                 val tiledX = (worldTouch.x / (tileWidth  / 2f) - worldTouch.y / (tileHeight / 2f)) / 2f * tileHeight
                 val tiledY = (worldTouch.y / (tileHeight / 2f) + worldTouch.x / (tileWidth  / 2f)) / 2f * tileHeight
 
+                // Al tocar el mapa, cerramos cualquier ficha que esté abierta.
+                // Si tocamos una estructura, se abrirá la nueva abajo.
+                currentInfoWindow?.remove()
+                currentInfoWindow = null
+
                 try {
                     val logicaLayer = m.layers["Logica_Clics"] ?: return false
                     logicaLayer.objects.filterIsInstance<RectangleMapObject>().forEach { obj ->
@@ -413,12 +419,14 @@ class GameScreen(game: Main) : BaseScreen(game) {
                             val rawName   = obj.name ?: ""
                             val propId    = puntosAPropiedad[rawName] ?: rawName
                             val propiedad = PropiedadRepository.getPropiedad(propId) ?: return false
-                            BuildingInfoWindow(propiedad) {
+
+                            currentInfoWindow = BuildingInfoWindow(propiedad) {
                                 // Invalidar HUD y refrescar la textura cacheada del entry
                                 hudDirty = true
                                 invalidateRenderEntry(propId)
                                 Gdx.app.log("GAME", "${propiedad.nombre} → nivel ${propiedad.nivel}")
-                            }.show(stage)
+                            }
+                            currentInfoWindow?.show(stage)
                             return true
                         }
                     }
