@@ -392,6 +392,12 @@ class GameScreen(game: Main) : BaseScreen(game) {
 
     // ── Controles ────────────────────────────────────────────────────
     private fun configurarControlesMapa() {
+        lastMoney      = -1
+        lastStudents   = -1
+        lastReputation = -1
+        cycleTimer     = 0f
+        hudDirty       = true
+
         val multiplexer = InputMultiplexer()
         multiplexer.addProcessor(stage)
 

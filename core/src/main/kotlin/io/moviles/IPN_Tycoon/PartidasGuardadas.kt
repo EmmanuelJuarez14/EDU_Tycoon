@@ -24,7 +24,7 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
     private var infoFont: BitmapFont? = null
 
     private val backgroundTexture: Texture by lazy {
-        Texture("partidasguardadas.png".toInternalFile()).apply {
+        Texture("background.png".toInternalFile()).apply {
             setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
         }
     }
