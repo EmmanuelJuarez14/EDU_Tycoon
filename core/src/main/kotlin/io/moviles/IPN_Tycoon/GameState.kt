@@ -4,7 +4,7 @@ object GameState {
 
     // ── Identidad de sesión ───────────────────────────────────────────
     var saveId: Int       = 0   // 0 = sin guardar aún
-    var slotActual: Int   = 0   // 1, 2 = slots reales  |  3 = testing
+    var slotActual: Int   = 0   // 1, 2, 3 = slots reales
     var nombreJugador: String = ""
     var nombreEscuela: String = ""
     var ciclosJugados: Int    = 0

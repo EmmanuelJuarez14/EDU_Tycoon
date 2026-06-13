@@ -22,12 +22,12 @@ class SaveSelectionWindow(
     }
 
     private fun loadSlotsAndBuild() {
-        game.saveManager.cargarSlots { s1, s2 ->
-            buildUI(s1, s2)
+        game.saveManager.cargarSlots { s1, s2, s3 ->
+            buildUI(s1, s2, s3)
         }
     }
 
-    private fun buildUI(s1: GameSaveData?, s2: GameSaveData?) {
+    private fun buildUI(s1: GameSaveData?, s2: GameSaveData?, s3: GameSaveData?) {
         clearChildren()
         addCloseButton()
 
@@ -38,6 +38,8 @@ class SaveSelectionWindow(
             addSlotUI(this, 1, s1)
             // Slot 2
             addSlotUI(this, 2, s2)
+            // Slot 3
+            addSlotUI(this, 3, s3)
 
         }).pad(10f)
 
