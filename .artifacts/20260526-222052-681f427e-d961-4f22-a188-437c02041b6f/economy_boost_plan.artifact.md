@@ -24,6 +24,3 @@ En `GameScreen.kt`, acortaremos el tiempo que tarda un ciclo en completarse.
 
 #### [GameScreen.kt](file:///C:/Users/kevin/Downloads/TycoonIPN/IPN_Tycoon/core/src/main/kotlin/io/moviles/IPN_Tycoon/GameScreen.kt)
 - Cambiar `cycleDuration` de `60f` a `30f`.
-
----
-¿Te parecen bien estos valores o prefieres que sea aún más rápido?
