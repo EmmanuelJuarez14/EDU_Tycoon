@@ -41,12 +41,13 @@ class AndroidGameSaveManager(
         }
     }
 
-    // ── Cargar slots 1 y 2 ────────────────────────────────────────────
-    override fun cargarSlots(onResult: (GameSaveData?, GameSaveData?) -> Unit) {
+    // ── Cargar slots 1, 2 y 3 ─────────────────────────────────────────
+    override fun cargarSlots(onResult: (GameSaveData?, GameSaveData?, GameSaveData?) -> Unit) {
         scope.launch {
             val s1 = repository.getBySlot(1)?.toDto()
             val s2 = repository.getBySlot(2)?.toDto()
-            Gdx.app.postRunnable { onResult(s1, s2) }
+            val s3 = repository.getBySlot(3)?.toDto()
+            Gdx.app.postRunnable { onResult(s1, s2, s3) }
         }
     }
 

@@ -9,8 +9,8 @@ interface GameSaveManager {
     /** Guarda la partida en el slot indicado. */
     fun guardar(slot: Int, onDone: (success: Boolean) -> Unit)
 
-    /** Carga los datos de los slots 1 y 2 desde Room. */
-    fun cargarSlots(onResult: (slot1: GameSaveData?, slot2: GameSaveData?) -> Unit)
+    /** Carga los datos de los slots 1, 2 y 3 desde Room. */
+    fun cargarSlots(onResult: (slot1: GameSaveData?, slot2: GameSaveData?, slot3: GameSaveData?) -> Unit)
 
     /** Aplica un save al GameState global y al PropiedadRepository. */
     fun cargarPartida(slot: Int, onDone: (success: Boolean) -> Unit)

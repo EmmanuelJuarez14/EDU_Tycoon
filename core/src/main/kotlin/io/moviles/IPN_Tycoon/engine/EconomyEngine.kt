@@ -12,7 +12,7 @@ class EconomyEngine : GameCycleListener {
 
     override val resolutionOrder = ResolutionOrder.ECONOMY
 
-    private val INGRESO_POR_ALUMNO = 50L   // era 10 → payback ~10 ciclos para edificios básicos
+    private val INGRESO_POR_ALUMNO = 100L  // Aumentado de 50L a 100L para acelerar economía
 
     data class CycleResult(val ingresos: Long)
 

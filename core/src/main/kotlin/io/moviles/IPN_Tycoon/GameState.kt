@@ -4,15 +4,17 @@ object GameState {
 
     // ── Identidad de sesión ───────────────────────────────────────────
     var saveId: Int       = 0   // 0 = sin guardar aún
-    var slotActual: Int   = 0   // 1, 2 = slots reales  |  3 = testing
+    var slotActual: Int   = 0   // 1, 2, 3 = slots reales
     var nombreJugador: String = ""
     var nombreEscuela: String = ""
     var ciclosJugados: Int    = 0
     var musicaActiva: Boolean = true
 
     // ── Economía ──────────────────────────────────────────────────────
-    private const val DINERO_INICIAL: Long = 100_500_000L
-    var dinero: Long = DINERO_INICIAL
+    const val DINERO_INICIAL_REAL: Long = 500_000L
+    const val DINERO_INICIAL_TEST: Long = 100_000_000L
+
+    var dinero: Long = DINERO_INICIAL_REAL
     var alumnosTotales: Int = 0
 
     // ── API de dinero ─────────────────────────────────────────────────
@@ -30,13 +32,13 @@ object GameState {
         propiedad.precio * propiedad.nivel
 
     // ── Reset completo para nueva partida ─────────────────────────────
-    fun reset() {
+    fun reset(presupuestoInicial: Long = DINERO_INICIAL_REAL) {
         saveId         = 0
         slotActual     = 0
         nombreJugador  = ""
         nombreEscuela  = ""
         ciclosJugados  = 0
-        dinero         = DINERO_INICIAL
+        dinero         = presupuestoInicial
         alumnosTotales = 0
     }
 }

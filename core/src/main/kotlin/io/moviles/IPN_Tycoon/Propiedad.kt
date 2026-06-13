@@ -33,7 +33,7 @@ object PropiedadRepository {
         // TMX: 3728 × 1968
         "escom_hitbox" to Propiedad(
             id            = "escom_hitbox",
-            nombre        = "ESCOM",
+            nombre        = "Escuela de Computación",
             precio        = 300_000L,
             descripcion   = "Escuela Superior de Cómputo",
             capacidad     = 3200,
@@ -106,22 +106,23 @@ object PropiedadRepository {
         // ── ESIA ARQUITECTURA ─────────────────────────────────────────
         // Sin textura todavía — tamaño estimado
         "Arquitectura" to Propiedad(
-            id          = "Arquitectura",
-            nombre      = "ESIA Arquitectura",
-            precio      = 1_100_000L,
-            descripcion = "Escuela de construcción y diseño",
-            capacidad   = 2500,
-            baseAlumnos = 500,
-            mejoraMax   = 6,
-            renderW     = 4000f * ESCALA,
-            renderH     = 2800f * ESCALA
+            id            = "Arquitectura",
+            nombre        = "Arquitectura",
+            precio        = 1_100_000L,
+            descripcion   = "Escuela de construcción y diseño",
+            capacidad     = 2500,
+            baseAlumnos   = 500,
+            mejoraMax     = 3,
+            texturePrefix = "Arquitectura",
+            renderW       = 4000f * ESCALA,
+            renderH       = 2800f * ESCALA
         ),
 
         // ── ENCB BIOLÓGICAS ───────────────────────────────────────────
         // TMX: 5280 × 3164
         "Biologicas" to Propiedad(
             id            = "Biologicas",
-            nombre        = "ENCB Biológicas",
+            nombre        = "Biológicas",
             precio        = 1_250_000L,
             descripcion   = "Ciencias biológicas",
             capacidad     = 2800,
@@ -136,7 +137,7 @@ object PropiedadRepository {
         // TMX: 5132 × 3363
         "Bioquimica" to Propiedad(
             id            = "Bioquimica",
-            nombre        = "ENCB Bioquímica",
+            nombre        = "Bioquímica",
             precio        = 1_250_000L,
             descripcion   = "Ciencias bioquímicas",
             capacidad     = 2800,
@@ -150,15 +151,16 @@ object PropiedadRepository {
         // ── ESFM MATEMÁTICAS ──────────────────────────────────────────
         // Sin textura todavía — tamaño estimado
         "Matematicas" to Propiedad(
-            id          = "Matematicas",
-            nombre      = "ESFM Matemáticas",
-            precio      = 1_000_000L,
-            descripcion = "Física y Matemáticas",
-            capacidad   = 1500,
-            baseAlumnos = 300,
-            mejoraMax   = 5,
-            renderW     = 4500f * ESCALA,
-            renderH     = 2500f * ESCALA
+            id            = "Matematicas",
+            nombre        = "Matemáticas",
+            precio        = 1_000_000L,
+            descripcion   = "Física y Matemáticas",
+            capacidad     = 1500,
+            baseAlumnos   = 300,
+            mejoraMax     = 3,
+            texturePrefix = "Matematicas",
+            renderW       = 4500f * ESCALA,
+            renderH       = 2500f * ESCALA
         ),
 
         // ── EDIFICIO 1 ────────────────────────────────────────────────
@@ -194,34 +196,36 @@ object PropiedadRepository {
         // ── MUSEO TEZOZÓMOC ───────────────────────────────────────────
         // Sin textura todavía — tamaño estimado
         "Museo" to Propiedad(
-            id          = "Museo",
-            nombre      = "Museo Tezozómoc",
-            precio      = 600_000L,
-            descripcion = "Ciencia y tecnología",
-            capacidad   = 800,
-            baseAlumnos = 150,
-            mejoraMax   = 4,
-            renderW     = 4000f * ESCALA,
-            renderH     = 2400f * ESCALA
+            id            = "Museo",
+            nombre        = "Museo Tezozómoc",
+            precio        = 600_000L,
+            descripcion   = "Ciencia y tecnología",
+            capacidad     = 800,
+            baseAlumnos   = 150,
+            mejoraMax     = 3,
+            texturePrefix = "Museo",
+            renderW       = 6800f * ESCALA,
+            renderH       = 4200f * ESCALA
         ),
 
         // ── EST TURISMO ───────────────────────────────────────────────
         // Sin textura todavía — tamaño estimado
         "Turismo" to Propiedad(
-            id          = "Turismo",
-            nombre      = "EST Turismo",
-            precio      = 900_000L,
-            descripcion = "Escuela de Turismo",
-            capacidad   = 2200,
-            baseAlumnos = 450,
-            mejoraMax   = 6,
-            renderW     = 3000f * ESCALA,
-            renderH     = 2000f * ESCALA
+            id            = "Turismo",
+            nombre        = "Turismo",
+            precio        = 900_000L,
+            descripcion   = "Escuela de Turismo",
+            capacidad     = 2200,
+            baseAlumnos   = 450,
+            mejoraMax     = 3,
+            texturePrefix = "Turismo",
+            renderW       = 3000f * ESCALA,
+            renderH       = 2000f * ESCALA
         ),
 
         // ── PALAPAS ───────────────────────────────────────────────────
         // TMX: 1997 × 1069
-        "Palapas" to Propiedad(
+        "palapas" to Propiedad(
             id            = "palapas",
             nombre        = "Palapas",
             precio        = 350_000L,
@@ -235,7 +239,8 @@ object PropiedadRepository {
         )
     )
 
-    fun getPropiedad(id: String): Propiedad? = propiedades[id]
+    fun getPropiedad(id: String): Propiedad? =
+        propiedades[id] ?: propiedades.values.find { it.id.equals(id, ignoreCase = true) }
 
     fun resetProgress() {
         propiedades.values.forEach { it.nivel = 0; it.comprada = false }

@@ -24,7 +24,7 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
     private var infoFont: BitmapFont? = null
 
     private val backgroundTexture: Texture by lazy {
-        Texture("partidasguardadas.png".toInternalFile()).apply {
+        Texture("background.png".toInternalFile()).apply {
             setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
         }
     }
@@ -40,6 +40,7 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
 
     private var saveSlot1: GameSaveData? = null
     private var saveSlot2: GameSaveData? = null
+    private var saveSlot3: GameSaveData? = null
 
     private fun generateFont(size: Int): BitmapFont {
         val fontFile = "font.ttf".toInternalFile()
@@ -67,9 +68,10 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
     }
 
     private fun loadSlots() {
-        game.saveManager.cargarSlots { s1, s2 ->
+        game.saveManager.cargarSlots { s1, s2, s3 ->
             saveSlot1 = s1
             saveSlot2 = s2
+            saveSlot3 = s3
             buildUI()
         }
     }
@@ -125,8 +127,8 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
                     addSlot(this, 2, saveSlot2, btnStyle, infoStyle, borrarStyle)
                     label("").cell(width = 14f)
 
-                    // ── Slot 3 TESTING ────────────────────────────────
-                    addSlot(this, 3, null, btnStyle, infoStyle, borrarStyle)
+                    // ── Slot 3 ────────────────────────────────────────
+                    addSlot(this, 3, saveSlot3, btnStyle, infoStyle, borrarStyle)
 
                     row()
 
@@ -166,8 +168,8 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
                 wrap = true
             }.cell(width = slotWidth, padTop = 5f)
 
-            // Botón de eliminar si hay datos (excepto slot 3 test)
-            if (data != null && slotNum != 3) {
+            // Botón de eliminar si hay datos
+            if (data != null) {
                 row()
                 textButton("ELIMINAR") {
                     style = borrarStyle
@@ -184,45 +186,31 @@ class PartidasGuardadas(game: Main) : BaseScreen(game) {
     private fun onSlotClicked(slotNum: Int) {
         val gameScreen = game.getScreen<GameScreen>()
 
-        when (slotNum) {
-            1 -> if (saveSlot1 != null) {
-                game.saveManager.cargarPartida(1) { ok ->
-                    if (ok) { gameScreen.modoCarga = true; game.setScreen<GameScreen>() }
-                }
-            } else {
-                GameState.reset(); GameState.slotActual = 1
-                PropiedadRepository.resetProgress()
-                gameScreen.modoCarga = false
-                game.setScreen<GameScreen>()
-            }
+        val currentData = when(slotNum) {
+            1 -> saveSlot1
+            2 -> saveSlot2
+            3 -> saveSlot3
+            else -> null
+        }
 
-            2 -> if (saveSlot2 != null) {
-                game.saveManager.cargarPartida(2) { ok ->
-                    if (ok) { gameScreen.modoCarga = true; game.setScreen<GameScreen>() }
-                }
-            } else {
-                GameState.reset(); GameState.slotActual = 2
-                PropiedadRepository.resetProgress()
-                gameScreen.modoCarga = false
-                game.setScreen<GameScreen>()
+        if (currentData != null) {
+            game.saveManager.cargarPartida(slotNum) { ok ->
+                if (ok) { gameScreen.modoCarga = true; game.setScreen<GameScreen>() }
             }
-
-            3 -> {
-                GameState.slotActual = 3
-                gameScreen.modoCarga = true
-                game.setScreen<GameScreen>()
-            }
+        } else {
+            GameState.reset(GameState.DINERO_INICIAL_REAL); GameState.slotActual = slotNum
+            PropiedadRepository.resetProgress()
+            gameScreen.modoCarga = false
+            game.setScreen<GameScreen>()
         }
     }
 
     private fun slotTitle(slotNum: Int, data: GameSaveData?): String = when {
-        slotNum == 3 -> "TEST\nMapa directo"
         data != null -> data.nombreEscuela.ifBlank { "Partida $slotNum" }
         else         -> "+\nNUEVA PARTIDA"
     }
 
     private fun slotSubtitle(slotNum: Int, data: GameSaveData?): String = when {
-        slotNum == 3 -> "Carga el mapa\nsin dialogos"
         data == null -> "Slot $slotNum vacio"
         else -> {
             val fecha = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
