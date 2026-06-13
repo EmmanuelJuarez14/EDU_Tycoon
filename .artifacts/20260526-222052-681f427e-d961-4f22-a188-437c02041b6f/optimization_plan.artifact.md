@@ -41,4 +41,4 @@ if (!viewBounds.boundsInFrustum(info.worldX, info.worldY, 0f, sizeW, sizeH)) con
 
 ---
 
-¿Te gustaría que empiece aplicando el **Frustum Culling** (dibujar solo lo visible) y la **agrupación de renders** para mejorar los FPS?
+
