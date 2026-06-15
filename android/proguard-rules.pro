@@ -24,8 +24,6 @@
 -dontwarn android.support.**
 -dontwarn com.badlogic.gdx.backends.android.AndroidFragmentApplication
 
-# Needed by the gdx-controllers official extension.
--keep class com.badlogic.gdx.controllers.android.AndroidControllers
 
 # Needed by the Box2D official extension.
 -keepclassmembers class com.badlogic.gdx.physics.box2d.World {
@@ -46,6 +44,14 @@
 -keep public class com.badlogic.gdx.graphics.g2d.BitmapFont { *; }
 # You will probably need this line in most cases:
 -keep public class com.badlogic.gdx.graphics.Color { *; }
+
+# VisUI
+-keep class com.kotcrab.vis.ui.** { *; }
+-dontwarn com.kotcrab.vis.ui.**
+
+# LibKTX
+-keep class ktx.** { *; }
+-dontwarn ktx.**
 
 # These two lines are used with mapping files; see https://developer.android.com/build/shrink-code#retracing
 -keepattributes LineNumberTable,SourceFile
