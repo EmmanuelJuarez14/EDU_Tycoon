@@ -30,12 +30,15 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Scaling
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
+import io.moviles.IPN_Tycoon.engine.DecisionEngine
+import io.moviles.IPN_Tycoon.engine.DecisionEvent
 import io.moviles.IPN_Tycoon.engine.EconomyEngine
 import io.moviles.IPN_Tycoon.engine.EstudiantesEngine
 import io.moviles.IPN_Tycoon.engine.EventEngine
 import io.moviles.IPN_Tycoon.engine.EventoEfecto
 import io.moviles.IPN_Tycoon.engine.GameCycleEngine
 import io.moviles.IPN_Tycoon.engine.GameEvent
+import io.moviles.IPN_Tycoon.engine.OpcionDecision
 import ktx.actors.onChange
 import ktx.app.clearScreen
 import ktx.assets.toInternalFile
@@ -48,6 +51,8 @@ class GameScreen(game: Main) : BaseScreen(game) {
     private val economyEngine     = EconomyEngine()
     private val estudiantesEngine = EstudiantesEngine()
     private val eventEngine       = EventEngine { evento -> showEventToast(evento) }
+    private val decisionEngine    = DecisionEngine { evento -> mostrarDecision(evento) }
+    private var decisionWindow: DecisionEventWindow? = null
     private var cycleTimer        = 0f
     private val cycleDuration     = 30f
 
@@ -68,6 +73,7 @@ class GameScreen(game: Main) : BaseScreen(game) {
         cycleEngine.addListener(economyEngine)
         cycleEngine.addListener(estudiantesEngine)
         cycleEngine.addListener(eventEngine)
+        cycleEngine.addListener(decisionEngine)
     }
 
     // ── Mapa ──────────────────────────────────────────────────────────
@@ -398,12 +404,18 @@ class GameScreen(game: Main) : BaseScreen(game) {
         cycleTimer     = 0f
         hudDirty       = true
 
+        // stage.clear() ya quitó la ventana; una decisión sin responder se descarta
+        decisionWindow = null
+        decisionEngine.reset()
+
         val multiplexer = InputMultiplexer()
         multiplexer.addProcessor(stage)
 
         val gestureDetector = GestureDetector(object : GestureAdapter() {
 
             override fun tap(x: Float, y: Float, count: Int, button: Int): Boolean {
+                // Con una decisión abierta no se pueden abrir edificios
+                if (decisionWindow != null) return true
                 val m = map ?: return false
                 val worldTouch = Vector3(x, y, 0f)
                 camera.unproject(worldTouch)
@@ -725,8 +737,10 @@ class GameScreen(game: Main) : BaseScreen(game) {
     }
 
     private fun actualizarCicloDeJuego(delta: Float) {
+        // Juego en pausa mientras haya una decisión sin responder
+        if (decisionWindow != null) return
         cycleTimer += delta
-        while (cycleTimer >= cycleDuration) {
+        while (cycleTimer >= cycleDuration && decisionWindow == null) {
             cycleTimer -= cycleDuration
             cycleEngine.advanceCycle()
             hudDirty = true   // El ciclo cambia dinero/alumnos → invalidar caché HUD
@@ -751,9 +765,10 @@ class GameScreen(game: Main) : BaseScreen(game) {
             alumnosLabel?.setText(formatAlumnos(lastStudents))
         }
 
-        val reputation = if (cachedTotalMaxLevel > 0) {
+        val progresoEdificios = if (cachedTotalMaxLevel > 0) {
             ((cachedCurrentLevel.toFloat() / cachedTotalMaxLevel) * 100).toInt().coerceIn(0, 100)
         } else 0
+        val reputation = GameState.reputacionTotal(progresoEdificios)
 
         if (reputation != lastReputation) {
             lastReputation = reputation
@@ -864,6 +879,41 @@ class GameScreen(game: Main) : BaseScreen(game) {
         toast.setPosition((stage.width - toast.width) / 2f, stage.height * 0.22f)
         toast.addAction(Actions.sequence(
             Actions.fadeIn(0.25f), Actions.delay(5f), Actions.fadeOut(0.4f)
+        ))
+    }
+
+    // ── Eventos de decisión ───────────────────────────────────────────
+    private fun mostrarDecision(evento: DecisionEvent) {
+        currentInfoWindow?.remove()
+        currentInfoWindow = null
+
+        decisionWindow = DecisionEventWindow(
+            evento      = evento,
+            puedeElegir = decisionEngine::puedeElegir
+        ) { opcion ->
+            decisionWindow = null
+            if (decisionEngine.elegir(opcion)) {
+                hudDirty = true
+                showDecisionToast(evento, opcion)
+            }
+        }
+        decisionWindow?.show(stage)
+    }
+
+    private fun showDecisionToast(evento: DecisionEvent, opcion: OpcionDecision) {
+        val toast = eventTable ?: return
+        val positivo = opcion.dinero >= 0 && opcion.reputacion >= 0
+        val color = if (positivo) Color.GREEN else Color.ORANGE
+        eventTituloLabel?.setText("${evento.titulo}: ${opcion.texto}")
+        eventTituloLabel?.setColor(color)
+        eventEfectoLabel?.setText(DecisionEventWindow.efectos(opcion))
+        eventEfectoLabel?.setColor(color)
+        toast.clearActions()
+        toast.color.a = 0f
+        toast.invalidateHierarchy(); toast.pack()
+        toast.setPosition((stage.width - toast.width) / 2f, stage.height * 0.22f)
+        toast.addAction(Actions.sequence(
+            Actions.fadeIn(0.25f), Actions.delay(4f), Actions.fadeOut(0.4f)
         ))
     }
 
